@@ -1,0 +1,5 @@
+google-adk
+pdfplumber
+pyyaml
+python-dotenv
+litellm
