@@ -75,10 +75,10 @@ def _call_llm(system: str, user: str, max_retries: int = 3) -> str:
         except RateLimitError as e:
             if attempt < max_retries - 1:
                 wait_time = 45 * (attempt + 1)
-                print(f"  ⚠️ 無料APIの制限(Rate Limit)에達했습니다. {wait_time}초 대기 후 재시도합니다... ({attempt+1}/{max_retries})")
+                print(f"  ⚠️ 無料APIの制限(Rate Limit)に達しました。{wait_time}秒待機してから再試行します... ({attempt+1}/{max_retries})")
                 time.sleep(wait_time)
             else:
-                print("  ❌ API 제한(Rate Limit)에 의한 재시도 횟수 초과.")
+                print("  ❌ API制限(Rate Limit)による再試行上限に達しました。")
                 raise e
 
 
@@ -120,7 +120,7 @@ def main():
         print("⚠️  면접 준비에 필요한 파일이 부족합니다.\n")
         for msg in status["missing"]:
             print(f"  {msg}")
-        print("\n準備ができたら、再度実行してください.")
+        print("\n準備ができたら、再度実行してください。")
         print("준비가 되면 다시 실행해주세요.")
         sys.exit(1)
 
@@ -134,7 +134,7 @@ def main():
                 result = convert_pdf_to_yaml(f"{stem}.pdf")
 
                 if result["status"] == "error":
-                    print(f"  ❌ 에러: {result['message']}")
+                    print(f"  ❌ エラー: {result['message']}")
                     sys.exit(1)
 
                 # LLM을 사용하여 추출된 텍스트를 구조화된 YAML로 변환
@@ -175,7 +175,7 @@ def main():
 
     # ── 스텝 2: 지원동기 생성 ──
     _print_step(2, "志望動機の作成", "지원동기 작성")
-    print("  🤖 생성 중... / 생성 중...")
+    print("  🤖 生成中... / 생성 중...")
 
     shibou_response = _call_llm(SYSTEM_PROMPT, SHIBOU_DOUKI_PROMPT + "\n\n" + context)
     shibou_yaml = _parse_yaml_from_response(shibou_response)
@@ -183,7 +183,7 @@ def main():
     try:
         shibou_data = yaml.safe_load(shibou_yaml)
     except yaml.YAMLError:
-        shibou_data = {"ja": shibou_yaml, "ko": "(파싱 실패)"}
+        shibou_data = {"ja": shibou_yaml, "ko": "(パース失敗)"}
 
     if isinstance(shibou_data, dict) and "shibou_douki" in shibou_data:
         sd = shibou_data["shibou_douki"]
@@ -201,7 +201,7 @@ def main():
 
     # ── 스텝 3: 향후 목표 생성 ──
     _print_step(3, "今後何がしたいかの作成", "향후 목표 작성")
-    print("  🤖 생성 중... / 생성 중...")
+    print("  🤖 生成中... / 생성 중...")
 
     kongo_response = _call_llm(SYSTEM_PROMPT, KONGO_NANIKA_PROMPT + "\n\n" + context)
     kongo_yaml = _parse_yaml_from_response(kongo_response)
@@ -209,7 +209,7 @@ def main():
     try:
         kongo_data = yaml.safe_load(kongo_yaml)
     except yaml.YAMLError:
-        kongo_data = {"ja": kongo_yaml, "ko": "(파싱 실패)"}
+        kongo_data = {"ja": kongo_yaml, "ko": "(パース失敗)"}
 
     if isinstance(kongo_data, dict) and "kongo_nanika" in kongo_data:
         kn = kongo_data["kongo_nanika"]
@@ -226,7 +226,7 @@ def main():
 
     # ── 스텝 4: 역질문 생성 ──
     _print_step(4, "逆質問の作成", "역질문 작성")
-    print("  🤖 생성 중... / 생성 중...")
+    print("  🤖 生成中... / 생성 중...")
 
     gyaku_response = _call_llm(SYSTEM_PROMPT, GYAKU_SHITSUMON_PROMPT + "\n\n" + context)
     gyaku_yaml = _parse_yaml_from_response(gyaku_response)
@@ -257,15 +257,16 @@ def main():
             ja_text="",
             ko_text="",
             questions_ja=[gyaku_yaml],
-            questions_ko=["(파싱 실패)"],
+            questions_ko=["(パース失敗)"],
         )
     print("  ✅ output/gyaku_shitsumon.yaml 保存完了")
 
     # ── 완료 ──
     print(f"\n{'=' * 60}")
+    print("  ✅ すべての面接準備が完了しました！")
     print("  ✅ 모든 면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
-    print("\n📁 생성된 파일 / 생성된 파일:")
+    print("\n📁 生成されたファイル / 생성된 파일:")
     print("  - output/shibou_douki.yaml   (志望動機 / 지원동기)")
     print("  - output/kongo_nanika.yaml   (今後何がしたいか / 향후 목표)")
     print("  - output/gyaku_shitsumon.yaml (逆質問 / 역질문)")

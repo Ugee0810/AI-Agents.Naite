@@ -20,11 +20,11 @@ def save_output_yaml(
 
     Args:
         output_type: 결과물 타입. "shibou_douki" | "kongo_nanika" | "gyaku_shitsumon"
-        ja_text: 일본어 원문 (지원동기, 향후 목표에 사용)
-        ko_text: 한국어 번역 (지원동기, 향후 목표에 사용)
-        key_points: 핵심 포인트 목록 (지원동기, 향후 목표에 사용)
-        questions_ja: 역질문 일본어 목록 (역질문에 사용)
-        questions_ko: 역질문 한국어 목록 (역질문에 사용)
+        ja_text: 일본어 원문 (志望動機, 今後何がしたいか에 사용)
+        ko_text: 한국어 번역 (志望動機, 今後何がしたいか에 사용)
+        key_points: 핵심 포인트 목록 (志望動機, 今後何がしたいか에 사용)
+        questions_ja: 역질문 일본어 목록 (逆質問에 사용)
+        questions_ko: 역질문 한국어 목록 (逆質問에 사용)
         estimated_duration: 예상 소요 시간 (선택)
 
     Returns:
@@ -34,7 +34,7 @@ def save_output_yaml(
     if output_type not in valid_types:
         return {
             "status": "error",
-            "message": f"무효한 output_type입니다. 유효한 값: {valid_types}",
+            "message": f"無効なoutput_typeです。有効な値: {valid_types}",
         }
 
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,7 +47,7 @@ def save_output_yaml(
         if not questions_ja or not questions_ko:
             return {
                 "status": "error",
-                "message": "역질문에는 questions_ja와 questions_ko가 필요합니다.",
+                "message": "逆質問にはquestions_jaとquestions_koが必要です。",
             }
         content = {
             "gyaku_shitsumon": {
@@ -81,10 +81,10 @@ def save_output_yaml(
         return {
             "status": "success",
             "output_path": f"output/{output_type}.yaml",
-            "message": f"{output_type}.yaml 를 output/ 폴더에 저장했습니다.",
+            "message": f"{output_type}.yaml を output/ フォルダに保存しました。",
         }
     except Exception as e:
         return {
             "status": "error",
-            "message": f"파일 저장 에러: {str(e)}",
+            "message": f"ファイル保存エラー: {str(e)}",
         }

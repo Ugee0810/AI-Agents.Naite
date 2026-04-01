@@ -63,8 +63,8 @@ def convert_pdf_to_yaml(pdf_filename: str) -> dict:
         "extracted_text": extracted_text.strip(),
         "raw_yaml_path": f"data/{stem}_raw.yaml",
         "message": (
-            f"{doc_type}의 텍스트 추출이 완료되었습니다."
-            f"추출 텍스트를 확인하고, 구조화된 YAML로 변환하십시오."
-            f"변환 후에는 data/{stem}.yaml 로 저장하십시오."
+            f"{doc_type}のテキスト抽出が完了しました。"
+            f"抽出テキストを確認し、構造化されたYAMLに変換してください。"
+            f"変換後は data/{stem}.yaml として保存してください。"
         ),
     }

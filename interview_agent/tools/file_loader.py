@@ -40,20 +40,20 @@ def check_preparation_status() -> dict:
     if not status["resume_yaml"]:
         if not status["resume_pdf"]:
             missing.append(
-                "📄 履歴書(이력서): data/resume.pdf 를 배치하십시오."
+                "📄 履歴書(이력서): data/resume.pdf を配置してください。"
             )
 
     if not status["career_yaml"]:
         if not status["career_pdf"]:
             missing.append(
-                "📄 職務経歴書(직무경력서): data/career.pdf 를 배치하십시오."
+                "📄 職務経歴書(직무경력서): data/career.pdf を配置してください。"
             )
 
     if not status["target_company"]:
         missing.append(
             "🏢 応募先企業情報(지원 기업 정보): "
-            "templates/target_company_template.yaml 를 data/target_company.yaml 에 복사하여, "
-            "내용을 기입하십시오."
+            "templates/target_company_template.yaml を data/target_company.yaml にコピーし、"
+            "内容を記入してください。"
         )
 
     ready = len(missing) == 0
@@ -84,7 +84,7 @@ def load_yaml_data(file_path: str) -> dict:
     if not os.path.exists(abs_path):
         return {
             "status": "error",
-            "message": f"파일을 찾을 수 없습니다: {file_path}",
+            "message": f"ファイルが見つかりません: {file_path}",
         }
 
     try:
@@ -98,5 +98,5 @@ def load_yaml_data(file_path: str) -> dict:
     except yaml.YAMLError as e:
         return {
             "status": "error",
-            "message": f"YAML 분석 에러: {str(e)}",
+            "message": f"YAML解析エラー: {str(e)}",
         }

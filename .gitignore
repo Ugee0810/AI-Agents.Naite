@@ -6,3 +6,7 @@ data/*.pdf
 data/resume.yaml
 data/career.yaml
 output/
+.adk/
+setup_github.bat
+test_llm.py
+gh_output.txt
