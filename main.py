@@ -2,6 +2,10 @@
 
 python main.py 로 직접 실행합니다.
 파일 상태를 확인하고, 준비가 완료되면 자동으로 면접 스크립트를 생성합니다.
+
+v2.0 — 面接対策資料ナレッジ注入による高品質版
+  新規追加: 自己紹介, 転職理由, 自己PR
+  高度化: 志望動機, 今後何がしたいか, 逆質問
 """
 
 import sys
@@ -19,7 +23,10 @@ from interview_agent.tools.file_loader import check_preparation_status, load_yam
 from interview_agent.tools.pdf_converter import convert_pdf_to_yaml
 from interview_agent.tools.output_writer import save_output_yaml
 from interview_agent.prompts import (
+    JIKO_SHOUKAI_PROMPT,
     SHIBOU_DOUKI_PROMPT,
+    TENSYOKU_RIYUU_PROMPT,
+    JIKO_PR_PROMPT,
     KONGO_NANIKA_PROMPT,
     GYAKU_SHITSUMON_PROMPT,
     PDF_CONVERSION_PROMPT,
@@ -30,7 +37,7 @@ from interview_agent.prompts import (
 def _print_header():
     print("=" * 60)
     print("  面接準備エージェント / 면접 준비 에이전트")
-    print("  AI-Agents.Naite v1.0")
+    print("  AI-Agents.Naite v2.0 — 高品質版")
     print("=" * 60)
     print()
 
@@ -107,6 +114,42 @@ def _parse_yaml_from_response(text: str) -> str:
     return text.strip()
 
 
+def _generate_standard_item(
+    step_num: int,
+    title_ja: str,
+    title_ko: str,
+    output_type: str,
+    prompt: str,
+    context: str,
+) -> dict:
+    """표준 생성 항목(자기소개, 지원동기, 전직이유, 향후목표)을 처리합니다."""
+    _print_step(step_num, f"{title_ja}の作成", f"{title_ko} 작성")
+    print("  🤖 生成中... / 생성 중...")
+
+    response = _call_llm(SYSTEM_PROMPT, prompt + "\n\n" + context)
+    response_yaml = _parse_yaml_from_response(response)
+
+    try:
+        data = yaml.safe_load(response_yaml)
+    except yaml.YAMLError:
+        data = {"ja": response_yaml, "ko": "(パース失敗)"}
+
+    if isinstance(data, dict) and output_type in data:
+        item = data[output_type]
+    else:
+        item = data if isinstance(data, dict) else {"ja": str(data), "ko": ""}
+
+    save_output_yaml(
+        output_type=output_type,
+        ja_text=item.get("ja", ""),
+        ko_text=item.get("ko", ""),
+        key_points=item.get("key_points", []),
+        estimated_duration=item.get("estimated_duration", ""),
+    )
+    print(f"  ✅ output/{output_type}.yaml 保存完了")
+    return item
+
+
 def main():
     _print_header()
 
@@ -173,59 +216,41 @@ def main():
         company_result["data"],
     )
 
-    # ── 스텝 2: 지원동기 생성 ──
-    _print_step(2, "志望動機の作成", "지원동기 작성")
+    # ── 스텝 2: 자기소개 생성 (신규) ──
+    _generate_standard_item(2, "自己紹介", "자기소개", "jiko_shoukai", JIKO_SHOUKAI_PROMPT, context)
+
+    # ── 스텝 3: 지원동기 생성 (고도화) ──
+    _generate_standard_item(3, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context)
+
+    # ── 스텝 4: 전직이유 생성 (신규) ──
+    _generate_standard_item(4, "転職理由", "전직이유", "tensyoku_riyuu", TENSYOKU_RIYUU_PROMPT, context)
+
+    # ── 스텝 5: 자기PR 생성 (신규) ──
+    _print_step(5, "自己PRの作成", "자기PR 작성")
     print("  🤖 生成中... / 생성 중...")
 
-    shibou_response = _call_llm(SYSTEM_PROMPT, SHIBOU_DOUKI_PROMPT + "\n\n" + context)
-    shibou_yaml = _parse_yaml_from_response(shibou_response)
+    jiko_pr_response = _call_llm(SYSTEM_PROMPT, JIKO_PR_PROMPT + "\n\n" + context)
+    jiko_pr_yaml = _parse_yaml_from_response(jiko_pr_response)
 
     try:
-        shibou_data = yaml.safe_load(shibou_yaml)
+        jiko_pr_data = yaml.safe_load(jiko_pr_yaml)
     except yaml.YAMLError:
-        shibou_data = {"ja": shibou_yaml, "ko": "(パース失敗)"}
+        jiko_pr_data = {"jiko_pr": {"strengths": {"ja": jiko_pr_yaml, "ko": "(パース失敗)"}}}
 
-    if isinstance(shibou_data, dict) and "shibou_douki" in shibou_data:
-        sd = shibou_data["shibou_douki"]
+    if isinstance(jiko_pr_data, dict) and "jiko_pr" in jiko_pr_data:
+        jp = jiko_pr_data["jiko_pr"]
     else:
-        sd = shibou_data if isinstance(shibou_data, dict) else {"ja": str(shibou_data), "ko": ""}
+        jp = jiko_pr_data if isinstance(jiko_pr_data, dict) else {}
 
-    save_output_yaml(
-        output_type="shibou_douki",
-        ja_text=sd.get("ja", ""),
-        ko_text=sd.get("ko", ""),
-        key_points=sd.get("key_points", []),
-        estimated_duration=sd.get("estimated_duration", ""),
-    )
-    print("  ✅ output/shibou_douki.yaml 保存完了")
+    # jiko_pr는 strengths/weakness 복합 구조이므로 raw_data로 저장
+    save_output_yaml(output_type="jiko_pr", raw_data={"jiko_pr": jp})
+    print("  ✅ output/jiko_pr.yaml 保存完了")
 
-    # ── 스텝 3: 향후 목표 생성 ──
-    _print_step(3, "今後何がしたいかの作成", "향후 목표 작성")
-    print("  🤖 生成中... / 생성 중...")
+    # ── 스텝 6: 향후 목표 생성 (고도화) ──
+    _generate_standard_item(6, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context)
 
-    kongo_response = _call_llm(SYSTEM_PROMPT, KONGO_NANIKA_PROMPT + "\n\n" + context)
-    kongo_yaml = _parse_yaml_from_response(kongo_response)
-
-    try:
-        kongo_data = yaml.safe_load(kongo_yaml)
-    except yaml.YAMLError:
-        kongo_data = {"ja": kongo_yaml, "ko": "(パース失敗)"}
-
-    if isinstance(kongo_data, dict) and "kongo_nanika" in kongo_data:
-        kn = kongo_data["kongo_nanika"]
-    else:
-        kn = kongo_data if isinstance(kongo_data, dict) else {"ja": str(kongo_data), "ko": ""}
-
-    save_output_yaml(
-        output_type="kongo_nanika",
-        ja_text=kn.get("ja", ""),
-        ko_text=kn.get("ko", ""),
-        key_points=kn.get("key_points", []),
-    )
-    print("  ✅ output/kongo_nanika.yaml 保存完了")
-
-    # ── 스텝 4: 역질문 생성 ──
-    _print_step(4, "逆質問の作成", "역질문 작성")
+    # ── 스텝 7: 역질문 생성 (고도화) ──
+    _print_step(7, "逆質問の作成", "역질문 작성")
     print("  🤖 生成中... / 생성 중...")
 
     gyaku_response = _call_llm(SYSTEM_PROMPT, GYAKU_SHITSUMON_PROMPT + "\n\n" + context)
@@ -245,17 +270,14 @@ def main():
     if questions:
         save_output_yaml(
             output_type="gyaku_shitsumon",
-            ja_text="",
-            ko_text="",
             questions_ja=[q.get("ja", "") for q in questions],
             questions_ko=[q.get("ko", "") for q in questions],
+            questions_intent=[q.get("intent", "") for q in questions],
         )
     else:
         # fallback: 파싱 실패 시 원본 텍스트 저장
         save_output_yaml(
             output_type="gyaku_shitsumon",
-            ja_text="",
-            ko_text="",
             questions_ja=[gyaku_yaml],
             questions_ko=["(パース失敗)"],
         )
@@ -267,8 +289,11 @@ def main():
     print("  ✅ 모든 면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
     print("\n📁 生成されたファイル / 생성된 파일:")
-    print("  - output/shibou_douki.yaml   (志望動機 / 지원동기)")
-    print("  - output/kongo_nanika.yaml   (今後何がしたいか / 향후 목표)")
+    print("  - output/jiko_shoukai.yaml    (自己紹介 / 자기소개)")
+    print("  - output/shibou_douki.yaml    (志望動機 / 지원동기)")
+    print("  - output/tensyoku_riyuu.yaml  (転職理由 / 전직이유)")
+    print("  - output/jiko_pr.yaml         (自己PR / 자기PR)")
+    print("  - output/kongo_nanika.yaml    (今後何がしたいか / 향후 목표)")
     print("  - output/gyaku_shitsumon.yaml (逆質問 / 역질문)")
     print()
 
