@@ -3,9 +3,9 @@
 python main.py 로 직접 실행합니다.
 파일 상태를 확인하고, 준비가 완료되면 자동으로 면접 스크립트를 생성합니다.
 
-v2.0 — 面接対策資料ナレッジ注入による高品質版
-  新規追加: 自己紹介, 転職理由, 自己PR
-  高度化: 志望動機, 今後何がしたいか, 逆質問
+v3.0 — 最終面接（役員面接）対応版
+  追加: 転職軸, 最終面接モード（謙虚さ・未来テーマ）
+  改善: 逆質問2バージョン（現場社員向け / 役員向け）
 """
 
 import sys
@@ -28,19 +28,27 @@ from interview_agent.prompts import (
     TENSYOKU_RIYUU_PROMPT,
     JIKO_PR_PROMPT,
     KONGO_NANIKA_PROMPT,
-    GYAKU_SHITSUMON_PROMPT,
+    GYAKU_SHITSUMON_PROMPT_EARLY,
+    GYAKU_SHITSUMON_PROMPT_FINAL,
+    TENSYOKU_JIKU_PROMPT,
     TSUYOMI_YOWAMI_PROMPT,
     YARIGAI_PROMPT,
     KONNAN_KEIKEN_PROMPT,
     PDF_CONVERSION_PROMPT,
     SYSTEM_PROMPT,
+    SYSTEM_PROMPT_FINAL,
 )
 
 
-def _print_header():
+def _print_header(is_final: bool = False):
     print("=" * 60)
-    print("  面接準備エージェント / 면접 준비 에이전트")
-    print("  AI-Agents.Naite v2.0 — 高品質版")
+    if is_final:
+        print("  最終面接準備エージェント / 최종 면접 준비 에이전트")
+        print("  AI-Agents.Naite v3.0 — 役員面接対応版")
+        print("  テーマ: 「未来」 — 謙虚さを重視した受け答え")
+    else:
+        print("  面接準備エージェント / 면접 준비 에이전트")
+        print("  AI-Agents.Naite v3.0")
     print("=" * 60)
     print()
 
@@ -124,12 +132,14 @@ def _generate_standard_item(
     output_type: str,
     prompt: str,
     context: str,
+    system_prompt: str = None,
 ) -> dict:
-    """표준 생성 항목(자기소개, 지원동기, 전직이유, 향후목표)을 처리합니다."""
+    """표준 생성 항목(자기소개, 지원동기, 전직이유, 향후목표 등)을 처리합니다."""
     _print_step(step_num, f"{title_ja}の作成", f"{title_ko} 작성")
     print("  🤖 生成中... / 생성 중...")
 
-    response = _call_llm(SYSTEM_PROMPT, prompt + "\n\n" + context)
+    sys_prompt = system_prompt or SYSTEM_PROMPT
+    response = _call_llm(sys_prompt, prompt + "\n\n" + context)
     response_yaml = _parse_yaml_from_response(response)
 
     try:
@@ -142,19 +152,26 @@ def _generate_standard_item(
     else:
         item = data if isinstance(data, dict) else {"ja": str(data), "ko": ""}
 
-    save_output_yaml(
+    result = save_output_yaml(
         output_type=output_type,
         ja_text=item.get("ja", ""),
         ko_text=item.get("ko", ""),
         key_points=item.get("key_points", []),
         estimated_duration=item.get("estimated_duration", ""),
     )
-    print(f"  ✅ output/{output_type}.yaml 保存完了")
+    if result["status"] == "success":
+        print(f"  ✅ {result['output_path']} 保存完了")
+    else:
+        print(f"  ❌ 保存失敗: {result['message']}")
     return item
 
 
 def main():
-    _print_header()
+    # 면접 단계 감지
+    is_final = "--final" in sys.argv
+    system_prompt = SYSTEM_PROMPT_FINAL if is_final else SYSTEM_PROMPT
+
+    _print_header(is_final)
 
     # ── 스텝 0: 준비 상태 확인 ──
     print("🔍 準備状態を確認中... / 준비 상태 확인 중...")
@@ -220,19 +237,19 @@ def main():
     )
 
     # ── 스텝 2: 자기소개 생성 (신규) ──
-    _generate_standard_item(2, "自己紹介", "자기소개", "jiko_shoukai", JIKO_SHOUKAI_PROMPT, context)
+    _generate_standard_item(2, "自己紹介", "자기소개", "jiko_shoukai", JIKO_SHOUKAI_PROMPT, context, system_prompt)
 
     # ── 스텝 3: 지원동기 생성 (고도화) ──
-    _generate_standard_item(3, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context)
+    _generate_standard_item(3, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context, system_prompt)
 
     # ── 스텝 4: 전직이유 생성 (신규) ──
-    _generate_standard_item(4, "転職理由", "전직이유", "tensyoku_riyuu", TENSYOKU_RIYUU_PROMPT, context)
+    _generate_standard_item(4, "転職理由", "전직이유", "tensyoku_riyuu", TENSYOKU_RIYUU_PROMPT, context, system_prompt)
 
     # ── 스텝 5: 자기PR 생성 (신규) ──
     _print_step(5, "自己PRの作成", "자기PR 작성")
     print("  🤖 生成中... / 생성 중...")
 
-    jiko_pr_response = _call_llm(SYSTEM_PROMPT, JIKO_PR_PROMPT + "\n\n" + context)
+    jiko_pr_response = _call_llm(system_prompt, JIKO_PR_PROMPT + "\n\n" + context)
     jiko_pr_yaml = _parse_yaml_from_response(jiko_pr_response)
 
     try:
@@ -246,17 +263,28 @@ def main():
         jp = jiko_pr_data if isinstance(jiko_pr_data, dict) else {}
 
     # jiko_pr는 strengths/weakness 복합 구조이므로 raw_data로 저장
-    save_output_yaml(output_type="jiko_pr", raw_data={"jiko_pr": jp})
-    print("  ✅ output/jiko_pr.yaml 保存完了")
+    result_jp = save_output_yaml(output_type="jiko_pr", raw_data={"jiko_pr": jp})
+    if result_jp["status"] == "success":
+        print(f"  ✅ {result_jp['output_path']} 保存完了")
+    else:
+        print(f"  ❌ 保存失敗: {result_jp['message']}")
 
     # ── 스텝 6: 향후 목표 생성 (고도화) ──
-    _generate_standard_item(6, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context)
+    _generate_standard_item(6, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context, system_prompt)
 
-    # ── 스텝 7: 역질문 생성 (고도화) ──
-    _print_step(7, "逆質問の作成", "역질문 작성")
+    # ── 스텝 6.5: 전직축 생성 (최종면접 한정) ──
+    if is_final:
+        _generate_standard_item(7, "転職軸", "전직축", "tensyoku_jiku", TENSYOKU_JIKU_PROMPT, context, system_prompt)
+
+    # ── 스텝 7(or 8): 역질문 생성 (면접 단계별) ──
+    gyaku_step = 8 if is_final else 7
+    gyaku_prompt = GYAKU_SHITSUMON_PROMPT_FINAL if is_final else GYAKU_SHITSUMON_PROMPT_EARLY
+    gyaku_label = "最終面接用逆質問" if is_final else "逆質問"
+    gyaku_label_ko = "최종면접용 역질문" if is_final else "역질문"
+    _print_step(gyaku_step, f"{gyaku_label}の作成", f"{gyaku_label_ko} 작성")
     print("  🤖 生成中... / 생성 중...")
 
-    gyaku_response = _call_llm(SYSTEM_PROMPT, GYAKU_SHITSUMON_PROMPT + "\n\n" + context)
+    gyaku_response = _call_llm(system_prompt, gyaku_prompt + "\n\n" + context)
     gyaku_yaml = _parse_yaml_from_response(gyaku_response)
 
     try:
@@ -271,7 +299,7 @@ def main():
 
     questions = gq.get("questions", [])
     if questions:
-        save_output_yaml(
+        result_gq = save_output_yaml(
             output_type="gyaku_shitsumon",
             questions_ja=[q.get("ja", "") for q in questions],
             questions_ko=[q.get("ko", "") for q in questions],
@@ -279,12 +307,25 @@ def main():
         )
     else:
         # fallback: 파싱 실패 시 원본 텍스트 저장
-        save_output_yaml(
+        result_gq = save_output_yaml(
             output_type="gyaku_shitsumon",
             questions_ja=[gyaku_yaml],
             questions_ko=["(パース失敗)"],
         )
-    print("  ✅ output/gyaku_shitsumon.yaml 保存完了")
+    
+    if result_gq["status"] == "success":
+        print(f"  ✅ {result_gq['output_path']} 保存完了")
+    else:
+        print(f"  ❌ 保存失敗: {result_gq['message']}")
+
+    # ── 스텝 8: 강점과 약점 (직답용) 생성 ──
+    _generate_standard_item(8, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context, system_prompt)
+
+    # ── 스텝 9: 보람을 느끼는 순간 생성 ──
+    _generate_standard_item(9, "やりがいを感じる時", "보람을 느끼는 순간", "yarigai", YARIGAI_PROMPT, context, system_prompt)
+
+    # ── 스텝 10: 가장 어려웠던 경험 생성 ──
+    _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context, system_prompt)
 
     # ── 스텝 8: 강점과 약점 (직답용) 생성 ──
     _generate_standard_item(8, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context)
@@ -296,20 +337,26 @@ def main():
     _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context)
 
     # ── 완료 ──
+    mode_label = "最終面接" if is_final else "面接"
     print(f"\n{'=' * 60}")
-    print("  ✅ すべての面接準備が完了しました！")
-    print("  ✅ 모든 면접 준비가 완료되었습니다!")
+    print(f"すべての{mode_label}準備が完了しました！")
+    print(f"모든 {'최종 ' if is_final else ''}면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
     print("\n📁 生成されたファイル / 생성된 파일:")
-    print("  - output/jiko_shoukai.yaml    (自己紹介 / 자기소개)")
-    print("  - output/shibou_douki.yaml    (志望動機 / 지원동기)")
-    print("  - output/tensyoku_riyuu.yaml  (転職理由 / 전직이유)")
-    print("  - output/jiko_pr.yaml         (自己PR / 자기PR)")
-    print("  - output/kongo_nanika.yaml    (今後何がしたいか / 향후 목표)")
-    print("  - output/gyaku_shitsumon.yaml (逆質問 / 역질문)")
-    print("  - output/tsuyomi_yowami.yaml  (自身の強みと弱み / 강점과 약점)")
-    print("  - output/yarigai.yaml         (やりがいを感じる時 / 일의 보람)")
-    print("  - output/konnan_keiken.yaml   (最も困難だった経験 / 가장 어려웠던 경험)")
+    print("  - output/今後何がしたいか(향후 목표).yaml")
+    print("  - output/逆質問(역질문).yaml")
+    print("  - output/自身の強みと弱み(강점과 약점).yaml")
+    print("  - output/やりがいを感じる時(일의 보람).yaml")
+    print("  - output/最も困難だった経験(가장 어려웠던 경험).yaml")
+    print("  - output/自己紹介(자기소개).yaml")
+    print("  - output/志望動機(지원동기).yaml")
+    print("  - output/転職理由(전직이유).yaml")
+    print("  - output/自己PR(자기PR).yaml")
+    if is_final:
+        print("  - output/転職軸(전직축).yaml")
+    if is_final:
+        print("\n  🎯 最終面接モード: 謙虚さを重視した未来志向の回答を生成しました")
+        print("  🎯 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
     print()
 
 

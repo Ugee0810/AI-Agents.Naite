@@ -37,23 +37,26 @@ def save_output_yaml(
         저장 결과 정보를 담은 dict
     """
     valid_types = {
-        "jiko_shoukai",
-        "shibou_douki",
-        "tensyoku_riyuu",
-        "jiko_pr",
-        "kongo_nanika",
-        "gyaku_shitsumon",
+        "jiko_shoukai": "自己紹介(자기소개)",
+        "shibou_douki": "志望動機(지원동기)",
+        "tensyoku_riyuu": "転職理由(전직이유)",
+        "jiko_pr": "自己PR(자기PR)",
+        "kongo_nanika": "今後何がしたいか(향후목표)",
+        "tensyoku_jiku": "転職軸(전직축)",
+        "gyaku_shitsumon": "逆質問(역질문)",
     }
     if output_type not in valid_types:
         return {
             "status": "error",
-            "message": f"無効なoutput_typeです。有効な値: {valid_types}",
+            "message": f"無効なoutput_typeです。有効な値: {list(valid_types.keys())}",
         }
+
+    file_name = valid_types[output_type]
 
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     output_dir = os.path.join(base_dir, "output")
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"{output_type}.yaml")
+    output_path = os.path.join(output_dir, f"{file_name}.yaml")
 
     # raw_data가 제공된 경우 (jiko_pr 등 복합 구조) 그대로 사용
     if raw_data is not None:
@@ -96,8 +99,8 @@ def save_output_yaml(
             )
         return {
             "status": "success",
-            "output_path": f"output/{output_type}.yaml",
-            "message": f"{output_type}.yaml を output/ フォルダに保存しました。",
+            "output_path": f"output/{file_name}.yaml",
+            "message": f"{file_name}.yaml を output/ フォルダに保存しました。",
         }
     except Exception as e:
         return {
