@@ -31,6 +31,9 @@ from interview_agent.prompts import (
     GYAKU_SHITSUMON_PROMPT_EARLY,
     GYAKU_SHITSUMON_PROMPT_FINAL,
     TENSYOKU_JIKU_PROMPT,
+    TSUYOMI_YOWAMI_PROMPT,
+    YARIGAI_PROMPT,
+    KONNAN_KEIKEN_PROMPT,
     PDF_CONVERSION_PROMPT,
     SYSTEM_PROMPT,
     SYSTEM_PROMPT_FINAL,
@@ -315,6 +318,15 @@ def main():
     else:
         print(f"  ❌ 保存失敗: {result_gq['message']}")
 
+    # ── 스텝 8: 강점과 약점 (직답용) 생성 ──
+    _generate_standard_item(8, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context, system_prompt)
+
+    # ── 스텝 9: 보람을 느끼는 순간 생성 ──
+    _generate_standard_item(9, "やりがいを感じる時", "보람을 느끼는 순간", "yarigai", YARIGAI_PROMPT, context, system_prompt)
+
+    # ── 스텝 10: 가장 어려웠던 경험 생성 ──
+    _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context, system_prompt)
+
     # ── 완료 ──
     mode_label = "最終面接" if is_final else "面接"
     print(f"\n{'=' * 60}")
@@ -322,14 +334,17 @@ def main():
     print(f"  ✅ 모든 {'최종 ' if is_final else ''}면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
     print("\n📁 生成されたファイル / 생성된 파일:")
+    print("  - output/kongo_nanika.yaml    (今後何がしたいか / 향후 목표)")
+    print("  - output/gyaku_shitsumon.yaml (逆質問 / 역질문)")
+    print("  - output/tsuyomi_yowami.yaml  (自身の強みと弱み / 강점과 약점)")
+    print("  - output/yarigai.yaml         (やりがいを感じる時 / 일의 보람)")
+    print("  - output/konnan_keiken.yaml   (最も困難だった経験 / 가장 어려웠던 경험)")
     print("  - output/自己紹介(자기소개).yaml")
     print("  - output/志望動機(지원동기).yaml")
     print("  - output/転職理由(전직이유).yaml")
     print("  - output/自己PR(자기PR).yaml")
-    print("  - output/今後何がしたいか(향후목표).yaml")
     if is_final:
         print("  - output/転職軸(전직축).yaml   ★最終面接用")
-    print("  - output/逆質問(역질문).yaml")
     if is_final:
         print("\n  🎯 最終面接モード: 謙虚さを重視した未来志向の回答を生成しました")
         print("  🎯 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
