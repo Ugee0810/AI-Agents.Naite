@@ -327,15 +327,6 @@ def main():
     # ── 스텝 10: 가장 어려웠던 경험 생성 ──
     _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context, system_prompt)
 
-    # ── 스텝 8: 강점과 약점 (직답용) 생성 ──
-    _generate_standard_item(8, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context)
-
-    # ── 스텝 9: 보람을 느끼는 순간 생성 ──
-    _generate_standard_item(9, "やりがいを感じる時", "보람을 느끼는 순간", "yarigai", YARIGAI_PROMPT, context)
-
-    # ── 스텝 10: 가장 어려웠던 경험 생성 ──
-    _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context)
-
     # ── 완료 ──
     mode_label = "最終面接" if is_final else "面接"
     print(f"\n{'=' * 60}")

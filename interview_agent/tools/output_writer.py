@@ -41,9 +41,12 @@ def save_output_yaml(
         "shibou_douki": "志望動機(지원동기)",
         "tensyoku_riyuu": "転職理由(전직이유)",
         "jiko_pr": "自己PR(자기PR)",
-        "kongo_nanika": "今後何がしたいか(향후목표)",
+        "kongo_nanika": "今後何がしたいか(향후 목표)",
         "tensyoku_jiku": "転職軸(전직축)",
         "gyaku_shitsumon": "逆質問(역질문)",
+        "tsuyomi_yowami": "自身の強みと弱み(강점과 약점)",
+        "yarigai": "やりがいを感じる時(일의 보람)",
+        "konnan_keiken": "最も困難だった経験(가장 어려웠던 경험)",
     }
     if output_type not in valid_types:
         return {
