@@ -45,13 +45,16 @@ graph TD
     C -- "YAML 존재" --> E["데이터 로드 및<br>프롬프트 컨텍스트 결합"]:::system
     D --> E
     
-    %% AI 분석 및 결과 (6항목)
+    %% AI 분석 및 결과 (9항목)
     E --> F1["자기소개<br>AI 스크립트 작성"]:::ai
     E --> F2["지원동기<br>AI 전략 스크립트"]:::ai
     E --> F3["전직이유<br>포지티브 변환"]:::ai
     E --> F4["자기PR<br>강점·약점 구성"]:::ai
     E --> F5["향후 포부<br>3단계 캐리어비전"]:::ai
     E --> F6["역질문<br>고급 질문 전략"]:::ai
+    E --> F7["강점과 약점<br>직접 답변용"]:::ai
+    E --> F8["보람을 느끼는 때<br>직접 답변용"]:::ai
+    E --> F9["어려웠던 경험<br>직접 답변용"]:::ai
     
     F1 --> G["이중 언어 출력<br>output/ 분리 저장"]:::system
     F2 --> G
@@ -59,7 +62,10 @@ graph TD
     F4 --> G
     F5 --> G
     F6 --> G
-    G --> H((("6항목 생성 완료"))):::result
+    F7 --> G
+    F8 --> G
+    F9 --> G
+    G --> H((("9항목 생성 완료"))):::result
 ```
 
 ## 📁 결과물 목록
@@ -74,6 +80,9 @@ graph TD
 | `output/jiko_pr.yaml`         | 자기PR — 강점 3개(에피소드포함) + 약점 1개(개선책포함) |
 | `output/kongo_nanika.yaml`    | 향후에 무엇을 하고 싶은지 (입사 후 포부 / 목표) |
 | `output/gyaku_shitsumon.yaml` | 면접 말미에 필요한 역질문 목록 (기본 3개 + 의도 해설) |
+| `output/tsuyomi_yowami.yaml`  | 자신의 강점과 약점 (自身の強みと弱み) 직접 답변용 |
+| `output/yarigai.yaml`         | 일에서 보람을 느끼는 순간 (やりがいを感じる時) |
+| `output/konnan_keiken.yaml`   | 인생에서 가장 어려웠던 경험 (最も困難だった経験) |
 
 ## ⚙️ 설치 및 설정 가이드
 

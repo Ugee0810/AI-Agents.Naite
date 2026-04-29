@@ -29,6 +29,9 @@ from interview_agent.prompts import (
     JIKO_PR_PROMPT,
     KONGO_NANIKA_PROMPT,
     GYAKU_SHITSUMON_PROMPT,
+    TSUYOMI_YOWAMI_PROMPT,
+    YARIGAI_PROMPT,
+    KONNAN_KEIKEN_PROMPT,
     PDF_CONVERSION_PROMPT,
     SYSTEM_PROMPT,
 )
@@ -283,6 +286,15 @@ def main():
         )
     print("  ✅ output/gyaku_shitsumon.yaml 保存完了")
 
+    # ── 스텝 8: 강점과 약점 (직답용) 생성 ──
+    _generate_standard_item(8, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context)
+
+    # ── 스텝 9: 보람을 느끼는 순간 생성 ──
+    _generate_standard_item(9, "やりがいを感じる時", "보람을 느끼는 순간", "yarigai", YARIGAI_PROMPT, context)
+
+    # ── 스텝 10: 가장 어려웠던 경험 생성 ──
+    _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context)
+
     # ── 완료 ──
     print(f"\n{'=' * 60}")
     print("  ✅ すべての面接準備が完了しました！")
@@ -295,6 +307,9 @@ def main():
     print("  - output/jiko_pr.yaml         (自己PR / 자기PR)")
     print("  - output/kongo_nanika.yaml    (今後何がしたいか / 향후 목표)")
     print("  - output/gyaku_shitsumon.yaml (逆質問 / 역질문)")
+    print("  - output/tsuyomi_yowami.yaml  (自身の強みと弱み / 강점과 약점)")
+    print("  - output/yarigai.yaml         (やりがいを感じる時 / 일의 보람)")
+    print("  - output/konnan_keiken.yaml   (最も困難だった経験 / 가장 어려웠던 경험)")
     print()
 
 
