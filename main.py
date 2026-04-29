@@ -149,14 +149,17 @@ def _generate_standard_item(
     else:
         item = data if isinstance(data, dict) else {"ja": str(data), "ko": ""}
 
-    save_output_yaml(
+    result = save_output_yaml(
         output_type=output_type,
         ja_text=item.get("ja", ""),
         ko_text=item.get("ko", ""),
         key_points=item.get("key_points", []),
         estimated_duration=item.get("estimated_duration", ""),
     )
-    print(f"  ✅ output/{output_type}.yaml 保存完了")
+    if result["status"] == "success":
+        print(f"  ✅ {result['output_path']} 保存完了")
+    else:
+        print(f"  ❌ 保存失敗: {result['message']}")
     return item
 
 
@@ -257,8 +260,11 @@ def main():
         jp = jiko_pr_data if isinstance(jiko_pr_data, dict) else {}
 
     # jiko_pr는 strengths/weakness 복합 구조이므로 raw_data로 저장
-    save_output_yaml(output_type="jiko_pr", raw_data={"jiko_pr": jp})
-    print("  ✅ output/jiko_pr.yaml 保存完了")
+    result_jp = save_output_yaml(output_type="jiko_pr", raw_data={"jiko_pr": jp})
+    if result_jp["status"] == "success":
+        print(f"  ✅ {result_jp['output_path']} 保存完了")
+    else:
+        print(f"  ❌ 保存失敗: {result_jp['message']}")
 
     # ── 스텝 6: 향후 목표 생성 (고도화) ──
     _generate_standard_item(6, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context, system_prompt)
@@ -290,7 +296,7 @@ def main():
 
     questions = gq.get("questions", [])
     if questions:
-        save_output_yaml(
+        result_gq = save_output_yaml(
             output_type="gyaku_shitsumon",
             questions_ja=[q.get("ja", "") for q in questions],
             questions_ko=[q.get("ko", "") for q in questions],
@@ -298,12 +304,16 @@ def main():
         )
     else:
         # fallback: 파싱 실패 시 원본 텍스트 저장
-        save_output_yaml(
+        result_gq = save_output_yaml(
             output_type="gyaku_shitsumon",
             questions_ja=[gyaku_yaml],
             questions_ko=["(パース失敗)"],
         )
-    print("  ✅ output/gyaku_shitsumon.yaml 保存完了")
+    
+    if result_gq["status"] == "success":
+        print(f"  ✅ {result_gq['output_path']} 保存完了")
+    else:
+        print(f"  ❌ 保存失敗: {result_gq['message']}")
 
     # ── 완료 ──
     mode_label = "最終面接" if is_final else "面接"
@@ -312,14 +322,14 @@ def main():
     print(f"  ✅ 모든 {'최종 ' if is_final else ''}면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
     print("\n📁 生成されたファイル / 생성된 파일:")
-    print("  - output/jiko_shoukai.yaml    (自己紹介 / 자기소개)")
-    print("  - output/shibou_douki.yaml    (志望動機 / 지원동기)")
-    print("  - output/tensyoku_riyuu.yaml  (転職理由 / 전직이유)")
-    print("  - output/jiko_pr.yaml         (自己PR / 자기PR)")
-    print("  - output/kongo_nanika.yaml    (今後何がしたいか / 향후 목표)")
+    print("  - output/自己紹介(자기소개).yaml")
+    print("  - output/志望動機(지원동기).yaml")
+    print("  - output/転職理由(전직이유).yaml")
+    print("  - output/自己PR(자기PR).yaml")
+    print("  - output/今後何がしたいか(향후목표).yaml")
     if is_final:
-        print("  - output/tensyoku_jiku.yaml   (転職軸 / 전직축) ★最終面接用")
-    print("  - output/gyaku_shitsumon.yaml (逆質問 / 역질문)")
+        print("  - output/転職軸(전직축).yaml   ★最終面接用")
+    print("  - output/逆質問(역질문).yaml")
     if is_final:
         print("\n  🎯 最終面接モード: 謙虚さを重視した未来志向の回答を生成しました")
         print("  🎯 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
