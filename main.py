@@ -35,6 +35,7 @@ from interview_agent.prompts import (
     YARIGAI_PROMPT,
     KONNAN_KEIKEN_PROMPT,
     PDF_CONVERSION_PROMPT,
+    PDF_CONVERSION_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     SYSTEM_PROMPT_FINAL,
 )
@@ -100,13 +101,165 @@ def _call_llm(system: str, user: str, max_retries: int = 3) -> str:
                 raise e
 
 
+def _format_resume_context(resume: dict) -> str:
+    """이력서 데이터를 면접 컨텍스트에 최적화된 가독성 높은 형태로 변환합니다."""
+    lines = []
+
+    # 개인정보
+    personal = resume.get("personal", {})
+    if personal:
+        lines.append("### 基本情報（기본 정보）")
+        lines.append(f"- 氏名: {personal.get('name', '')} ({personal.get('furigana', '')})")
+        if personal.get("nationality"):
+            lines.append(f"- 国籍: {personal.get('nationality', '')}")
+        lines.append("")
+
+    # 학력
+    education = resume.get("education", [])
+    if education:
+        lines.append("### 学歴（학력）")
+        for edu in education:
+            inst = edu.get("institution", "")
+            major = f" — {edu['major']}" if edu.get("major") else ""
+            degree = f" ({edu['degree']})" if edu.get("degree") else ""
+            lines.append(f"- {edu.get('period', '')}: {inst}{major}{degree}")
+        lines.append("")
+
+    # 자격
+    qualifications = resume.get("qualifications", [])
+    if qualifications:
+        lines.append("### 資格（자격）")
+        for q in qualifications:
+            lines.append(f"- {q.get('date', '')}: {q.get('name', '')}")
+        lines.append("")
+
+    # 스킬
+    skills = resume.get("skills", {})
+    if skills:
+        lines.append("### スキル（기술 스택）")
+        if skills.get("languages"):
+            lines.append(f"- 言語: {', '.join(skills['languages'])}")
+        if skills.get("technical"):
+            lines.append(f"- 技術: {', '.join(skills['technical'])}")
+        lines.append("")
+
+    # 경력 (resume 내 career_history)
+    career = resume.get("career_history", [])
+    if career:
+        lines.append("### 職歴（직력）")
+        for c in career:
+            lines.append(f"- {c.get('period', '')}: {c.get('company', '')} {c.get('position', '')}")
+            for r in c.get("responsibilities", []):
+                lines.append(f"  - {r}")
+        lines.append("")
+
+    # 자기PR
+    if resume.get("self_pr"):
+        lines.append("### 自己PR要約（자기PR 요약）")
+        lines.append(resume["self_pr"])
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _format_career_context(career: dict) -> str:
+    """직무경력서 데이터를 면접 컨텍스트에 최적화된 가독성 높은 형태로 변환합니다."""
+    lines = []
+
+    # 직무 요약
+    if career.get("summary"):
+        lines.append("### 職務要約（직무 요약）")
+        lines.append(str(career["summary"]).strip())
+        lines.append("")
+
+    # 활용 가능한 경험·기술
+    applicable = career.get("applicable_skills", {})
+    if applicable:
+        lines.append("### 活かせる経験・知識・技術（활용 가능한 경험·기술）")
+        for category, items in applicable.items():
+            if isinstance(items, list):
+                for item in items:
+                    lines.append(f"- {item}")
+        lines.append("")
+
+    # 경력 상세
+    history = career.get("career_history", [])
+    if history:
+        lines.append("### 職務経歴（직무 경력 상세）")
+        for i, h in enumerate(history, 1):
+            lines.append(f"\n#### {i}社目: {h.get('company', '')} ({h.get('period', '')})")
+            if h.get("position"):
+                lines.append(f"- 役職: {h['position']}")
+            if h.get("team_size"):
+                lines.append(f"- チーム規模: {h['team_size']}")
+            if h.get("responsibilities"):
+                lines.append("- 主な業務:")
+                for r in h["responsibilities"]:
+                    lines.append(f"  - {r}")
+            if h.get("achievements"):
+                lines.append("- 主な実績:")
+                for a in h["achievements"]:
+                    lines.append(f"  - {a}")
+            if h.get("additional_contributions"):
+                lines.append("- 追加貢献:")
+                for c in h["additional_contributions"]:
+                    lines.append(f"  - {c}")
+
+            # 프로젝트 상세 (Livetoon 등)
+            for proj in h.get("projects", []):
+                lines.append(f"\n  **プロジェクト: {proj.get('name', '')}**")
+                if proj.get("period"):
+                    lines.append(f"  - 期間: {proj['period']}")
+                if proj.get("overview"):
+                    lines.append(f"  - 概要: {proj['overview']}")
+                if proj.get("achievements"):
+                    lines.append("  - 成果:")
+                    for a in proj["achievements"]:
+                        lines.append(f"    - {a}")
+                if proj.get("technologies"):
+                    lines.append(f"  - 技術: {', '.join(proj['technologies'])}")
+
+            if h.get("technologies"):
+                lines.append(f"- 使用技術: {', '.join(h['technologies'])}")
+        lines.append("")
+
+    # 기술 스킬
+    tech = career.get("technical_skills", {})
+    if tech:
+        lines.append("### 言語経験・スキル（기술 스택）")
+        for category, items in tech.items():
+            if isinstance(items, list) and items:
+                cat_label = category.replace("_", " ").title()
+                skills_str = ", ".join(
+                    f"{s.get('name', '')}({s.get('years', '')}年)" if isinstance(s, dict) else str(s)
+                    for s in items
+                )
+                lines.append(f"- {cat_label}: {skills_str}")
+        lines.append("")
+
+    # 자기PR
+    if career.get("self_pr"):
+        lines.append("### 自己PR（자기PR）")
+        lines.append(str(career["self_pr"]).strip())
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def _build_context(resume: dict, career: dict, company: dict) -> str:
-    """이력서, 직무경력서, 기업정보를 하나의 컨텍스트 문자열로 합성합니다."""
+    """이력서, 직무경력서, 기업정보를 면접 컨텍스트에 최적화된 문자열로 합성합니다.
+
+    단순 yaml.dump가 아닌, 면접관 시점에서 핵심 정보를 빠르게 파악할 수 있도록
+    구조화된 Markdown 형태로 변환합니다.
+    """
+    resume_ctx = _format_resume_context(resume)
+    career_ctx = _format_career_context(career)
+
     return (
         "## 履歴書（이력서）\n"
-        f"```yaml\n{yaml.dump(resume, allow_unicode=True, default_flow_style=False)}```\n\n"
+        f"{resume_ctx}\n\n"
         "## 職務経歴書（직무경력서）\n"
-        f"```yaml\n{yaml.dump(career, allow_unicode=True, default_flow_style=False)}```\n\n"
+        f"{career_ctx}\n\n"
         "## 応募先企業情報（지원 기업 정보）\n"
         f"```yaml\n{yaml.dump(company, allow_unicode=True, default_flow_style=False)}```"
     )
@@ -145,25 +298,35 @@ def _generate_standard_item(
     try:
         data = yaml.safe_load(response_yaml)
     except yaml.YAMLError:
-        data = {"ja": response_yaml, "ko": "(パース失敗)"}
+        data = {output_type: {"ja": response_yaml, "ko": "(パース失敗)"}}
 
+    # output_type 키가 있으면 그대로 사용, 없으면 감싸줌
     if isinstance(data, dict) and output_type in data:
-        item = data[output_type]
+        save_data = data
+    elif isinstance(data, dict):
+        save_data = {output_type: data}
     else:
-        item = data if isinstance(data, dict) else {"ja": str(data), "ko": ""}
+        save_data = {output_type: {"ja": str(data), "ko": ""}}
 
+    # ja 필드가 비어있거나 없는 경우 → LLM 응답 원문으로 fallback
+    inner = save_data.get(output_type, {})
+    if isinstance(inner, dict) and not inner.get("ja"):
+        print(f"  ⚠️  ja フィールドが空です。LLM応答をfallbackとして使用します。")
+        inner["ja"] = response_yaml
+        if not inner.get("ko"):
+            inner["ko"] = "(自動fallback — LLM応答からjaフィールドが抽出できませんでした)"
+        save_data[output_type] = inner
+
+    # raw_data로 직접 저장하여 필드 구조를 보존
     result = save_output_yaml(
         output_type=output_type,
-        ja_text=item.get("ja", ""),
-        ko_text=item.get("ko", ""),
-        key_points=item.get("key_points", []),
-        estimated_duration=item.get("estimated_duration", ""),
+        raw_data=save_data,
     )
     if result["status"] == "success":
         print(f"  ✅ {result['output_path']} 保存完了")
     else:
         print(f"  ❌ 保存失敗: {result['message']}")
-    return item
+    return save_data.get(output_type, save_data)
 
 
 def main():
@@ -206,7 +369,7 @@ def main():
                     doc_type=result["doc_type"],
                     text=result["extracted_text"],
                 )
-                structured = _call_llm(SYSTEM_PROMPT, prompt)
+                structured = _call_llm(PDF_CONVERSION_SYSTEM_PROMPT, prompt)
                 yaml_content = _parse_yaml_from_response(structured)
 
                 # 구조화된 YAML 저장
@@ -236,52 +399,38 @@ def main():
         company_result["data"],
     )
 
-    # ── 스텝 2: 자기소개 생성 (신규) ──
+    # ── 스텝 2 (00): 자기소개 ──
     _generate_standard_item(2, "自己紹介", "자기소개", "jiko_shoukai", JIKO_SHOUKAI_PROMPT, context, system_prompt)
 
-    # ── 스텝 3: 지원동기 생성 (고도화) ──
-    _generate_standard_item(3, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context, system_prompt)
+    # ── 스텝 3 (01): 자기PR ──
+    _generate_standard_item(3, "自己PR", "자기PR", "jiko_pr", JIKO_PR_PROMPT, context, system_prompt)
 
-    # ── 스텝 4: 전직이유 생성 (신규) ──
-    _generate_standard_item(4, "転職理由", "전직이유", "tensyoku_riyuu", TENSYOKU_RIYUU_PROMPT, context, system_prompt)
+    # ── 스텝 4 (02): 강점과 약점 ──
+    _generate_standard_item(4, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context, system_prompt)
 
-    # ── 스텝 5: 자기PR 생성 (신규) ──
-    _print_step(5, "自己PRの作成", "자기PR 작성")
-    print("  🤖 生成中... / 생성 중...")
+    # ── 스텝 5 (03): 보람을 느끼는 순간 ──
+    _generate_standard_item(5, "やりがいを感じる時", "보람을 느끼는 순간", "yarigai", YARIGAI_PROMPT, context, system_prompt)
 
-    jiko_pr_response = _call_llm(system_prompt, JIKO_PR_PROMPT + "\n\n" + context)
-    jiko_pr_yaml = _parse_yaml_from_response(jiko_pr_response)
+    # ── 스텝 6 (04): 가장 어려웠던 경험 ──
+    _generate_standard_item(6, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context, system_prompt)
 
-    try:
-        jiko_pr_data = yaml.safe_load(jiko_pr_yaml)
-    except yaml.YAMLError:
-        jiko_pr_data = {"jiko_pr": {"strengths": {"ja": jiko_pr_yaml, "ko": "(パース失敗)"}}}
+    # ── 스텝 7 (05): 전직축 ──
+    _generate_standard_item(7, "転職軸", "전직축", "tensyoku_jiku", TENSYOKU_JIKU_PROMPT, context, system_prompt)
 
-    if isinstance(jiko_pr_data, dict) and "jiko_pr" in jiko_pr_data:
-        jp = jiko_pr_data["jiko_pr"]
-    else:
-        jp = jiko_pr_data if isinstance(jiko_pr_data, dict) else {}
+    # ── 스텝 8 (06): 전직이유 ──
+    _generate_standard_item(8, "転職理由", "전직이유", "tensyoku_riyuu", TENSYOKU_RIYUU_PROMPT, context, system_prompt)
 
-    # jiko_pr는 strengths/weakness 복합 구조이므로 raw_data로 저장
-    result_jp = save_output_yaml(output_type="jiko_pr", raw_data={"jiko_pr": jp})
-    if result_jp["status"] == "success":
-        print(f"  ✅ {result_jp['output_path']} 保存完了")
-    else:
-        print(f"  ❌ 保存失敗: {result_jp['message']}")
+    # ── 스텝 9 (07): 지원동기 ──
+    _generate_standard_item(9, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context, system_prompt)
 
-    # ── 스텝 6: 향후 목표 생성 (고도화) ──
-    _generate_standard_item(6, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context, system_prompt)
+    # ── 스텝 10 (08): 향후 목표 ──
+    _generate_standard_item(10, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context, system_prompt)
 
-    # ── 스텝 6.5: 전직축 생성 (최종면접 한정) ──
-    if is_final:
-        _generate_standard_item(7, "転職軸", "전직축", "tensyoku_jiku", TENSYOKU_JIKU_PROMPT, context, system_prompt)
-
-    # ── 스텝 7(or 8): 역질문 생성 (면접 단계별) ──
-    gyaku_step = 8 if is_final else 7
+    # ── 스텝 11 (09): 역질문 ──
     gyaku_prompt = GYAKU_SHITSUMON_PROMPT_FINAL if is_final else GYAKU_SHITSUMON_PROMPT_EARLY
     gyaku_label = "最終面接用逆質問" if is_final else "逆質問"
     gyaku_label_ko = "최종면접용 역질문" if is_final else "역질문"
-    _print_step(gyaku_step, f"{gyaku_label}の作成", f"{gyaku_label_ko} 작성")
+    _print_step(11, f"{gyaku_label}の作成", f"{gyaku_label_ko} 작성")
     print("  🤖 生成中... / 생성 중...")
 
     gyaku_response = _call_llm(system_prompt, gyaku_prompt + "\n\n" + context)
@@ -293,39 +442,21 @@ def main():
         gyaku_data = {}
 
     if isinstance(gyaku_data, dict) and "gyaku_shitsumon" in gyaku_data:
-        gq = gyaku_data["gyaku_shitsumon"]
+        save_gq = gyaku_data
+    elif isinstance(gyaku_data, dict):
+        save_gq = {"gyaku_shitsumon": gyaku_data}
     else:
-        gq = gyaku_data if isinstance(gyaku_data, dict) else {}
+        save_gq = {"gyaku_shitsumon": {"questions": [{"ja": gyaku_yaml, "ko": "(パース失敗)"}]}}
 
-    questions = gq.get("questions", [])
-    if questions:
-        result_gq = save_output_yaml(
-            output_type="gyaku_shitsumon",
-            questions_ja=[q.get("ja", "") for q in questions],
-            questions_ko=[q.get("ko", "") for q in questions],
-            questions_intent=[q.get("intent", "") for q in questions],
-        )
-    else:
-        # fallback: 파싱 실패 시 원본 텍스트 저장
-        result_gq = save_output_yaml(
-            output_type="gyaku_shitsumon",
-            questions_ja=[gyaku_yaml],
-            questions_ko=["(パース失敗)"],
-        )
-    
+    result_gq = save_output_yaml(
+        output_type="gyaku_shitsumon",
+        raw_data=save_gq,
+    )
+
     if result_gq["status"] == "success":
         print(f"  ✅ {result_gq['output_path']} 保存完了")
     else:
         print(f"  ❌ 保存失敗: {result_gq['message']}")
-
-    # ── 스텝 8: 강점과 약점 (직답용) 생성 ──
-    _generate_standard_item(8, "自身の強みと弱み", "자신의 강점과 약점", "tsuyomi_yowami", TSUYOMI_YOWAMI_PROMPT, context, system_prompt)
-
-    # ── 스텝 9: 보람을 느끼는 순간 생성 ──
-    _generate_standard_item(9, "やりがいを感じる時", "보람을 느끼는 순간", "yarigai", YARIGAI_PROMPT, context, system_prompt)
-
-    # ── 스텝 10: 가장 어려웠던 경험 생성 ──
-    _generate_standard_item(10, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context, system_prompt)
 
     # ── 완료 ──
     mode_label = "最終面接" if is_final else "面接"
@@ -334,17 +465,16 @@ def main():
     print(f"모든 {'최종 ' if is_final else ''}면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
     print("\n📁 生成されたファイル / 생성된 파일:")
-    print("  - output/今後何がしたいか(향후 목표).yaml")
-    print("  - output/逆質問(역질문).yaml")
-    print("  - output/自身の強みと弱み(강점과 약점).yaml")
-    print("  - output/やりがいを感じる時(일의 보람).yaml")
-    print("  - output/最も困難だった経験(가장 어려웠던 경험).yaml")
-    print("  - output/自己紹介(자기소개).yaml")
-    print("  - output/志望動機(지원동기).yaml")
-    print("  - output/転職理由(전직이유).yaml")
-    print("  - output/自己PR(자기PR).yaml")
-    if is_final:
-        print("  - output/転職軸(전직축).yaml")
+    print("  - output/00. 自己紹介(자기소개).yaml")
+    print("  - output/01. 自己PR(자기PR).yaml")
+    print("  - output/02. 自身の強みと弱み(강점과 약점).yaml")
+    print("  - output/03. やりがいを感じる時(일의 보람).yaml")
+    print("  - output/04. 最も困難だった経験(가장 어려웠던 경험).yaml")
+    print("  - output/05. 転職軸(전직축).yaml")
+    print("  - output/06. 転職理由(전직이유).yaml")
+    print("  - output/07. 志望動機(지원동기).yaml")
+    print("  - output/08. 今後何がしたいか(향후 목표).yaml")
+    print("  - output/09. 逆質問(역질문).yaml")
     if is_final:
         print("\n  🎯 最終面接モード: 謙虚さを重視した未来志向の回答を生成しました")
         print("  🎯 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
