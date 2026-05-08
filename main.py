@@ -38,6 +38,7 @@ from interview_agent.prompts import (
     PDF_CONVERSION_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     SYSTEM_PROMPT_FINAL,
+    SELF_REVIEW_PROMPT,
 )
 
 
@@ -293,7 +294,13 @@ def _generate_standard_item(
 
     sys_prompt = system_prompt or SYSTEM_PROMPT
     response = _call_llm(sys_prompt, prompt + "\n\n" + context)
-    response_yaml = _parse_yaml_from_response(response)
+
+    # --- Self-Review Step ---
+    print("  🔍 Self-Review (自己検証) 実行中... / 셀프 리뷰 진행 중...")
+    review_prompt = f"{SELF_REVIEW_PROMPT}\n\n## レビュー対象の回答案:\n```yaml\n{_parse_yaml_from_response(response)}\n```\n\n## 面接コンテキスト:\n{context}"
+    reviewed_response = _call_llm(sys_prompt, review_prompt)
+
+    response_yaml = _parse_yaml_from_response(reviewed_response)
 
     try:
         data = yaml.safe_load(response_yaml)
@@ -434,7 +441,13 @@ def main():
     print("  🤖 生成中... / 생성 중...")
 
     gyaku_response = _call_llm(system_prompt, gyaku_prompt + "\n\n" + context)
-    gyaku_yaml = _parse_yaml_from_response(gyaku_response)
+
+    # --- Self-Review Step ---
+    print("  🔍 Self-Review (自己検証) 実行中... / 셀프 리뷰 진행 중...")
+    gyaku_review_prompt = f"{SELF_REVIEW_PROMPT}\n\n## レビュー対象の回答案:\n```yaml\n{_parse_yaml_from_response(gyaku_response)}\n```\n\n## 面接コンテキスト:\n{context}"
+    gyaku_reviewed_response = _call_llm(system_prompt, gyaku_review_prompt)
+
+    gyaku_yaml = _parse_yaml_from_response(gyaku_reviewed_response)
 
     try:
         gyaku_data = yaml.safe_load(gyaku_yaml)
