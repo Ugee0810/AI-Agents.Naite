@@ -171,7 +171,6 @@ AI-Agents.Naite/
 ├── output/                   # 최종 추출 및 답변 생성물 결과 YAML 폴더
 ├── templates/                # 기업 정보 입력 템플릿 (Copy&Paste 용이 형태)
 ├── main.py                   # 애플리케이션 엔트리 포인트 (--final 옵션 지원)
-├── test_llm.py               # LiteLLM 연동 체크 및 모델 작동 테스트 모듈
 ├── requirements.txt          # 파이썬 의존성 패키지 리스트
 └── .env.example              # 환경 설정 예시 템플릿
 ```
