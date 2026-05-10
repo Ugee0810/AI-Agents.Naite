@@ -14,7 +14,6 @@ from .tools.pdf_converter import convert_pdf_to_yaml
 from .tools.file_loader import check_preparation_status, load_yaml_data
 from .tools.output_writer import save_output_yaml
 
-
 root_agent = Agent(
     model=get_model_name(),
     name="interview_coach",

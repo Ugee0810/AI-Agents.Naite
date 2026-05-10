@@ -7,10 +7,8 @@
 import os
 import yaml
 
-
 def _get_base_dir() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 
 def check_preparation_status() -> dict:
     """면접 준비에 필요한 모든 파일의 존재 여부를 확인합니다.
@@ -40,18 +38,18 @@ def check_preparation_status() -> dict:
     if not status["resume_yaml"]:
         if not status["resume_pdf"]:
             missing.append(
-                "📄 履歴書(이력서): data/resume.pdf を配置してください。"
+                " 履歴書(이력서): data/resume.pdf を配置してください。"
             )
 
     if not status["career_yaml"]:
         if not status["career_pdf"]:
             missing.append(
-                "📄 職務経歴書(직무경력서): data/career.pdf を配置してください。"
+                " 職務経歴書(직무경력서): data/career.pdf を配置してください。"
             )
 
     if not status["target_company"]:
         missing.append(
-            "🏢 応募先企業情報(지원 기업 정보): "
+            " 応募先企業情報(지원 기업 정보): "
             "templates/target_company_template.yaml を data/target_company.yaml にコピーし、"
             "内容を記入してください。"
         )
@@ -67,7 +65,6 @@ def check_preparation_status() -> dict:
             or (status["career_pdf"] and not status["career_yaml"])
         ),
     }
-
 
 def load_yaml_data(file_path: str) -> dict:
     """YAML 파일을 읽어 dict로 반환합니다.

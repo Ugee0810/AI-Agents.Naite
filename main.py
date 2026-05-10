@@ -41,25 +41,22 @@ from interview_agent.prompts import (
     SELF_REVIEW_PROMPT,
 )
 
-
 def _print_header(is_final: bool = False):
     print("=" * 60)
     if is_final:
-        print("  最終面接準備エージェント / 최종 면접 준비 에이전트")
-        print("  AI-Agents.Naite v3.0 — 役員面接対応版")
-        print("  テーマ: 「未来」 — 謙虚さを重視した受け答え")
+        print(" 最終面接準備エージェント / 최종 면접 준비 에이전트")
+        print(" AI-Agents.Naite v3.0 — 役員面接対応版")
+        print(" テーマ: 「未来」 — 謙虚さを重視した受け答え")
     else:
-        print("  面接準備エージェント / 면접 준비 에이전트")
-        print("  AI-Agents.Naite v3.0")
+        print(" 面接準備エージェント / 면접 준비 에이전트")
+        print(" AI-Agents.Naite v3.0")
     print("=" * 60)
     print()
 
-
 def _print_step(num: int, title_ja: str, title_ko: str):
     print(f"\n{'─' * 50}")
-    print(f"  ステップ{num} / 스텝{num}: {title_ja} / {title_ko}")
+    print(f" ステップ{num} / 스텝{num}: {title_ja} / {title_ko}")
     print(f"{'─' * 50}")
-
 
 def _call_llm(system: str, user: str, max_retries: int = 3) -> str:
     """LLM API를 호출하여 응답 텍스트를 반환합니다. (Rate Limit 자동 대기 지원)"""
@@ -95,12 +92,11 @@ def _call_llm(system: str, user: str, max_retries: int = 3) -> str:
         except RateLimitError as e:
             if attempt < max_retries - 1:
                 wait_time = 45 * (attempt + 1)
-                print(f"  ⚠️ 無料APIの制限(Rate Limit)に達しました。{wait_time}秒待機してから再試行します... ({attempt+1}/{max_retries})")
+                print(f" 無料APIの制限(Rate Limit)に達しました。{wait_time}秒待機してから再試行します... ({attempt+1}/{max_retries})")
                 time.sleep(wait_time)
             else:
-                print("  ❌ API制限(Rate Limit)による再試行上限に達しました。")
+                print(" [Error] API 제한(Rate Limit)에 도달했습니다.")
                 raise e
-
 
 def _format_resume_context(resume: dict) -> str:
     """이력서 데이터를 면접 컨텍스트에 최적화된 가독성 높은 형태로 변환합니다."""
@@ -151,7 +147,7 @@ def _format_resume_context(resume: dict) -> str:
         for c in career:
             lines.append(f"- {c.get('period', '')}: {c.get('company', '')} {c.get('position', '')}")
             for r in c.get("responsibilities", []):
-                lines.append(f"  - {r}")
+                lines.append(f" - {r}")
         lines.append("")
 
     # 자기PR
@@ -161,7 +157,6 @@ def _format_resume_context(resume: dict) -> str:
         lines.append("")
 
     return "\n".join(lines)
-
 
 def _format_career_context(career: dict) -> str:
     """직무경력서 데이터를 면접 컨텍스트에 최적화된 가독성 높은 형태로 변환합니다."""
@@ -196,29 +191,29 @@ def _format_career_context(career: dict) -> str:
             if h.get("responsibilities"):
                 lines.append("- 主な業務:")
                 for r in h["responsibilities"]:
-                    lines.append(f"  - {r}")
+                    lines.append(f" - {r}")
             if h.get("achievements"):
                 lines.append("- 主な実績:")
                 for a in h["achievements"]:
-                    lines.append(f"  - {a}")
+                    lines.append(f" - {a}")
             if h.get("additional_contributions"):
                 lines.append("- 追加貢献:")
                 for c in h["additional_contributions"]:
-                    lines.append(f"  - {c}")
+                    lines.append(f" - {c}")
 
             # 프로젝트 상세 (Livetoon 등)
             for proj in h.get("projects", []):
-                lines.append(f"\n  **プロジェクト: {proj.get('name', '')}**")
+                lines.append(f"\n **プロジェクト: {proj.get('name', '')}**")
                 if proj.get("period"):
-                    lines.append(f"  - 期間: {proj['period']}")
+                    lines.append(f" - 期間: {proj['period']}")
                 if proj.get("overview"):
-                    lines.append(f"  - 概要: {proj['overview']}")
+                    lines.append(f" - 概要: {proj['overview']}")
                 if proj.get("achievements"):
-                    lines.append("  - 成果:")
+                    lines.append(" - 成果:")
                     for a in proj["achievements"]:
-                        lines.append(f"    - {a}")
+                        lines.append(f" - {a}")
                 if proj.get("technologies"):
-                    lines.append(f"  - 技術: {', '.join(proj['technologies'])}")
+                    lines.append(f" - 技術: {', '.join(proj['technologies'])}")
 
             if h.get("technologies"):
                 lines.append(f"- 使用技術: {', '.join(h['technologies'])}")
@@ -246,7 +241,6 @@ def _format_career_context(career: dict) -> str:
 
     return "\n".join(lines)
 
-
 def _build_context(resume: dict, career: dict, company: dict) -> str:
     """이력서, 직무경력서, 기업정보를 면접 컨텍스트에 최적화된 문자열로 합성합니다.
 
@@ -265,7 +259,6 @@ def _build_context(resume: dict, career: dict, company: dict) -> str:
         f"```yaml\n{yaml.dump(company, allow_unicode=True, default_flow_style=False)}```"
     )
 
-
 def _parse_yaml_from_response(text: str) -> str:
     """LLM 응답에서 ```yaml ... ``` 블록 내용을 추출합니다."""
     if "```yaml" in text:
@@ -278,7 +271,6 @@ def _parse_yaml_from_response(text: str) -> str:
         return text[start:end].strip()
     return text.strip()
 
-
 def _generate_standard_item(
     step_num: int,
     title_ja: str,
@@ -290,13 +282,13 @@ def _generate_standard_item(
 ) -> dict:
     """표준 생성 항목(자기소개, 지원동기, 전직이유, 향후목표 등)을 처리합니다."""
     _print_step(step_num, f"{title_ja}の作成", f"{title_ko} 작성")
-    print("  🤖 生成中... / 생성 중...")
+    print(" [AI] 생성 중...")
 
     sys_prompt = system_prompt or SYSTEM_PROMPT
     response = _call_llm(sys_prompt, prompt + "\n\n" + context)
 
     # --- Self-Review Step ---
-    print("  🔍 Self-Review (自己検証) 実行中... / 셀프 리뷰 진행 중...")
+    print(" [Review] 셀프 리뷰 진행 중...")
     review_prompt = f"{SELF_REVIEW_PROMPT}\n\n## レビュー対象の回答案:\n```yaml\n{_parse_yaml_from_response(response)}\n```\n\n## 面接コンテキスト:\n{context}"
     reviewed_response = _call_llm(sys_prompt, review_prompt)
 
@@ -318,7 +310,7 @@ def _generate_standard_item(
     # ja 필드가 비어있거나 없는 경우 → LLM 응답 원문으로 fallback
     inner = save_data.get(output_type, {})
     if isinstance(inner, dict) and not inner.get("ja"):
-        print(f"  ⚠️  ja フィールドが空です。LLM応答をfallbackとして使用します。")
+        print(f" ja フィールドが空です。LLM応答をfallbackとして使用します。")
         inner["ja"] = response_yaml
         if not inner.get("ko"):
             inner["ko"] = "(自動fallback — LLM応答からjaフィールドが抽出できませんでした)"
@@ -330,11 +322,10 @@ def _generate_standard_item(
         raw_data=save_data,
     )
     if result["status"] == "success":
-        print(f"  ✅ {result['output_path']} 保存完了")
+        print(f" [OK] {result['output_path']} 저장 완료")
     else:
-        print(f"  ❌ 保存失敗: {result['message']}")
+        print(f" [Error] 저장 실패: {result['message']}")
     return save_data.get(output_type, save_data)
-
 
 def main():
     # 면접 단계 감지
@@ -344,15 +335,14 @@ def main():
     _print_header(is_final)
 
     # ── 스텝 0: 준비 상태 확인 ──
-    print("🔍 準備状態を確認中... / 준비 상태 확인 중...")
+    print("[Check] 준비 상태 확인 중...")
     status = check_preparation_status()
 
     if not status["ready"]:
         # 파일 부족 → 안내 메시지 출력 후 종료
-        print("\n⚠️  面接準備に必要なファイルが不足しています。")
-        print("⚠️  면접 준비에 필요한 파일이 부족합니다.\n")
+        print("\n[Warning] 면접 준비에 필요한 파일이 부족합니다.\n")
         for msg in status["missing"]:
-            print(f"  {msg}")
+            print(f" {msg}")
         print("\n準備ができたら、再度実行してください。")
         print("준비가 되면 다시 실행해주세요.")
         sys.exit(1)
@@ -363,15 +353,15 @@ def main():
 
         for stem in ["resume", "career"]:
             if status["status"].get(f"{stem}_pdf") and not status["status"].get(f"{stem}_yaml"):
-                print(f"  🔄 {stem}.pdf → YAML 変換中...")
+                print(f" [Convert] {stem}.pdf -> YAML 변환 중...")
                 result = convert_pdf_to_yaml(f"{stem}.pdf")
 
                 if result["status"] == "error":
-                    print(f"  ❌ エラー: {result['message']}")
+                    print(f" エラー: {result['message']}")
                     sys.exit(1)
 
                 # LLM을 사용하여 추출된 텍스트를 구조화된 YAML로 변환
-                print(f"  🤖 LLMで構造化中...")
+                print(f" [AI] LLM으로 구조화 중...")
                 prompt = PDF_CONVERSION_PROMPT.format(
                     doc_type=result["doc_type"],
                     text=result["extracted_text"],
@@ -385,7 +375,7 @@ def main():
                 yaml_path = os.path.join(base_dir, "data", f"{stem}.yaml")
                 with open(yaml_path, "w", encoding="utf-8") as f:
                     f.write(yaml_content)
-                print(f"  ✅ data/{stem}.yaml 保存完了")
+                print(f" [OK] data/{stem}.yaml 저장 완료")
 
     # ── 스텝 1: 데이터 로드 ──
     _print_step(1, "データ読み込み", "데이터 로드")
@@ -396,9 +386,9 @@ def main():
 
     for name, r in [("履歴書", resume_result), ("職務経歴書", career_result), ("企業情報", company_result)]:
         if r["status"] == "error":
-            print(f"  ❌ {name}: {r['message']}")
+            print(f" {name}: {r['message']}")
             sys.exit(1)
-        print(f"  ✅ {name} 読み込み完了")
+        print(f" [OK] {name} 로드 완료")
 
     context = _build_context(
         resume_result["data"],
@@ -438,12 +428,12 @@ def main():
     gyaku_label = "最終面接用逆質問" if is_final else "逆質問"
     gyaku_label_ko = "최종면접용 역질문" if is_final else "역질문"
     _print_step(11, f"{gyaku_label}の作成", f"{gyaku_label_ko} 작성")
-    print("  🤖 生成中... / 생성 중...")
+    print(" [AI] 생성 중...")
 
     gyaku_response = _call_llm(system_prompt, gyaku_prompt + "\n\n" + context)
 
     # --- Self-Review Step ---
-    print("  🔍 Self-Review (自己検証) 実行中... / 셀프 리뷰 진행 중...")
+    print(" [Review] 셀프 리뷰 진행 중...")
     gyaku_review_prompt = f"{SELF_REVIEW_PROMPT}\n\n## レビュー対象の回答案:\n```yaml\n{_parse_yaml_from_response(gyaku_response)}\n```\n\n## 面接コンテキスト:\n{context}"
     gyaku_reviewed_response = _call_llm(system_prompt, gyaku_review_prompt)
 
@@ -467,9 +457,9 @@ def main():
     )
 
     if result_gq["status"] == "success":
-        print(f"  ✅ {result_gq['output_path']} 保存完了")
+        print(f" [OK] {result_gq['output_path']} 저장 완료")
     else:
-        print(f"  ❌ 保存失敗: {result_gq['message']}")
+        print(f" [Error] 저장 실패: {result_gq['message']}")
 
     # ── 완료 ──
     mode_label = "最終面接" if is_final else "面接"
@@ -477,22 +467,20 @@ def main():
     print(f"すべての{mode_label}準備が完了しました！")
     print(f"모든 {'최종 ' if is_final else ''}면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
-    print("\n📁 生成されたファイル / 생성된 파일:")
-    print("  - output/00. 自己紹介(자기소개).yaml")
-    print("  - output/01. 自己PR(자기PR).yaml")
-    print("  - output/02. 自身の強みと弱み(강점과 약점).yaml")
-    print("  - output/03. やりがいを感じる時(일의 보람).yaml")
-    print("  - output/04. 最も困難だった経験(가장 어려웠던 경험).yaml")
-    print("  - output/05. 転職軸(전직축).yaml")
-    print("  - output/06. 転職理由(전직이유).yaml")
-    print("  - output/07. 志望動機(지원동기).yaml")
-    print("  - output/08. 今後何がしたいか(향후 목표).yaml")
-    print("  - output/09. 逆質問(역질문).yaml")
+    print("\n[File] 생성된 파일:")
+    print(" - output/00. 自己紹介(자기소개).yaml")
+    print(" - output/01. 自己PR(자기PR).yaml")
+    print(" - output/02. 自身の強みと弱み(강점과 약점).yaml")
+    print(" - output/03. やりがいを感じる時(일의 보람).yaml")
+    print(" - output/04. 最も困難だった経験(가장 어려웠던 경험).yaml")
+    print(" - output/05. 転職軸(전직축).yaml")
+    print(" - output/06. 転職理由(전직이유).yaml")
+    print(" - output/07. 志望動機(지원동기).yaml")
+    print(" - output/08. 今後何がしたいか(향후 목표).yaml")
+    print(" - output/09. 逆質問(역질문).yaml")
     if is_final:
-        print("\n  🎯 最終面接モード: 謙虚さを重視した未来志向の回答を生成しました")
-        print("  🎯 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
+        print("\n [Mode] 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
     print()
-
 
 if __name__ == "__main__":
     main()

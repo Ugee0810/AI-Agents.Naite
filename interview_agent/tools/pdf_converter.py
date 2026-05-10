@@ -7,7 +7,6 @@ import os
 import pdfplumber
 import yaml
 
-
 def convert_pdf_to_yaml(pdf_filename: str) -> dict:
     """PDF 파일을 읽어 텍스트를 추출하고, data/ 폴더에 YAML 파일로 저장합니다.
 

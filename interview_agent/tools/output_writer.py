@@ -7,7 +7,6 @@
 import os
 import yaml
 
-
 # ──────────────────────────────────────────────────────────────
 # 커스텀 YAML Writer: 필드 순서 보존 + | block scalar
 # ──────────────────────────────────────────────────────────────
@@ -18,12 +17,10 @@ def _write_block_scalar(value: str, indent: int = 4) -> str:
     lines = value.strip().split("\n")
     return "|\n" + "\n".join(f"{prefix}{line}" for line in lines) + "\n"
 
-
 def _write_list(items: list, indent: int = 4) -> str:
     """리스트를 YAML 형태로 변환합니다."""
     prefix = " " * indent
     return "\n".join(f"{prefix}- {item}" for item in items) + "\n"
-
 
 def _write_standard_yaml(root_key: str, data: dict) -> str:
     """표준 면접 답변 YAML을 지정된 필드 순서로 작성합니다.
@@ -47,35 +44,34 @@ def _write_standard_yaml(root_key: str, data: dict) -> str:
         written_fields.add(field)
         value = data[field]
         if isinstance(value, str):
-            lines.append(f"  {field}: {_write_block_scalar(value)}")
+            lines.append(f" {field}: {_write_block_scalar(value)}")
         elif isinstance(value, list):
-            lines.append(f"  {field}:")
+            lines.append(f" {field}:")
             lines.append(_write_list(value))
         else:
-            lines.append(f"  {field}: {value}")
+            lines.append(f" {field}: {value}")
 
     # field_order에 없는 나머지 키도 출력 (데이터 유실 방지)
     for field, value in data.items():
         if field in written_fields:
             continue
         if isinstance(value, str):
-            lines.append(f"  {field}: {_write_block_scalar(value)}")
+            lines.append(f" {field}: {_write_block_scalar(value)}")
         elif isinstance(value, list):
-            lines.append(f"  {field}:")
+            lines.append(f" {field}:")
             lines.append(_write_list(value))
         elif isinstance(value, dict):
             # 중첩 dict는 yaml.dump로 fallback
             import yaml
             nested = yaml.dump(value, allow_unicode=True, default_flow_style=False, width=1000)
-            indented = "\n".join(f"    {l}" for l in nested.strip().split("\n"))
-            lines.append(f"  {field}:")
+            indented = "\n".join(f" {l}" for l in nested.strip().split("\n"))
+            lines.append(f" {field}:")
             lines.append(indented)
             lines.append("")
         else:
-            lines.append(f"  {field}: {value}")
+            lines.append(f" {field}: {value}")
 
     return "\n".join(lines)
-
 
 def _write_gyaku_shitsumon_yaml(data: dict) -> str:
     """역질문(逆質問) YAML을 번호 레이어 구조로 작성합니다.
@@ -93,7 +89,7 @@ def _write_gyaku_shitsumon_yaml(data: dict) -> str:
             intent_ko: |
               ...
     """
-    lines = ["gyaku_shitsumon:", "  questions:"]
+    lines = ["gyaku_shitsumon:", " questions:"]
 
     raw_questions = data.get("gyaku_shitsumon", data).get("questions", {})
 
@@ -110,21 +106,20 @@ def _write_gyaku_shitsumon_yaml(data: dict) -> str:
 
     for q_key in sorted(questions.keys()):
         q = questions[q_key]
-        lines.append(f"    {q_key}:")
+        lines.append(f" {q_key}:")
 
         for field in field_order:
             if field not in q:
                 continue
             value = str(q[field]).strip()
             if "\n" in value or len(value) > 60:
-                lines.append(f"      {field}: {_write_block_scalar(value, indent=8)}")
+                lines.append(f" {field}: {_write_block_scalar(value, indent=8)}")
             else:
                 lines.append(f"      {field}: |")
-                lines.append(f"        {value}")
+                lines.append(f" {value}")
                 lines.append("")
 
     return "\n".join(lines) + "\n"
-
 
 def _serialize_yaml(output_type: str, content: dict) -> str:
     """output_type에 따라 적절한 YAML serializer를 선택합니다."""
@@ -139,7 +134,6 @@ def _serialize_yaml(output_type: str, content: dict) -> str:
         data = content
 
     return _write_standard_yaml(root_key, data)
-
 
 # ──────────────────────────────────────────────────────────────
 # 메인 저장 함수
