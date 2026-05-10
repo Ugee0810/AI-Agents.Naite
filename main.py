@@ -1,13 +1,3 @@
-"""AI-Agents.Naite CLI 엔트리 포인트.
-
-python main.py 로 직접 실행합니다.
-파일 상태를 확인하고, 준비가 완료되면 자동으로 면접 스크립트를 생성합니다.
-
-v3.0 — 最終面接（役員面接）対応版
-  追加: 転職軸, 最終面接モード（謙虚さ・未来テーマ）
-  改善: 逆質問2バージョン（現場社員向け / 役員向け）
-"""
-
 import sys
 import yaml
 import litellm
@@ -45,11 +35,11 @@ def _print_header(is_final: bool = False):
     print("=" * 60)
     if is_final:
         print(" 最終面接準備エージェント / 최종 면접 준비 에이전트")
-        print(" AI-Agents.Naite v3.0 — 役員面接対応版")
+        print(" AI-Agents.Naite — 役員面接対応版")
         print(" テーマ: 「未来」 — 謙虚さを重視した受け答え")
     else:
         print(" 面接準備エージェント / 면접 준비 에이전트")
-        print(" AI-Agents.Naite v3.0")
+        print(" AI-Agents.Naite")
     print("=" * 60)
     print()
 

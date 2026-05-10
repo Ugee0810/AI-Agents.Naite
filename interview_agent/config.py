@@ -1,8 +1,3 @@
-"""LLM 프로바이더 설정 모듈.
-
-.env 파일의 LLM_PROVIDER 값에 따라 Gemini 또는 LMStudio 모델을 반환합니다.
-"""
-
 import os
 from dotenv import load_dotenv
 
