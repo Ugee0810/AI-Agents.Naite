@@ -97,6 +97,8 @@ def _format_resume_context(resume: dict) -> str:
     if personal:
         lines.append("### 基本情報（기본 정보）")
         lines.append(f"- 氏名: {personal.get('name', '')} ({personal.get('furigana', '')})")
+        if personal.get("birth_date"):
+            lines.append(f"- 生年月日: {personal.get('birth_date', '')} (年齢: {personal.get('age', '')}歳)")
         if personal.get("nationality"):
             lines.append(f"- 国籍: {personal.get('nationality', '')}")
         lines.append("")
@@ -108,8 +110,25 @@ def _format_resume_context(resume: dict) -> str:
         for edu in education:
             inst = edu.get("institution", "")
             major = f" — {edu['major']}" if edu.get("major") else ""
+            status = f" ({edu['status']})" if edu.get("status") else ""
             degree = f" ({edu['degree']})" if edu.get("degree") else ""
-            lines.append(f"- {edu.get('period', '')}: {inst}{major}{degree}")
+            lines.append(f"- {edu.get('period', '')}: {inst}{major}{status}{degree}")
+        lines.append("")
+
+    # 병역
+    military = resume.get("military_service", [])
+    if military:
+        lines.append("### 兵役（병역）")
+        for m in military:
+            lines.append(f"- {m.get('period', '')}: {m.get('event', '')}")
+        lines.append("")
+
+    # 기타 경험
+    other_exp = resume.get("other_experience", [])
+    if other_exp:
+        lines.append("### その他の経験（기타 경험）")
+        for exp in other_exp:
+            lines.append(f"- {exp.get('period', '')}: {exp.get('event', '')}")
         lines.append("")
 
     # 자격
@@ -120,7 +139,17 @@ def _format_resume_context(resume: dict) -> str:
             lines.append(f"- {q.get('date', '')}: {q.get('name', '')}")
         lines.append("")
 
-    # 스킬
+    # 스킬 및 취미
+    skills_hobbies = resume.get("skills_and_hobbies", {})
+    if skills_hobbies:
+        lines.append("### スキル及び趣味（스킬 및 취미）")
+        if skills_hobbies.get("specialty"):
+            lines.append(f"- 特技: {skills_hobbies.get('specialty', '')}")
+        if skills_hobbies.get("hobby"):
+            lines.append(f"- 趣味: {skills_hobbies.get('hobby', '')}")
+        lines.append("")
+
+    # 이전 resume 스킬 호환용
     skills = resume.get("skills", {})
     if skills:
         lines.append("### スキル（기술 스택）")
@@ -130,7 +159,7 @@ def _format_resume_context(resume: dict) -> str:
             lines.append(f"- 技術: {', '.join(skills['technical'])}")
         lines.append("")
 
-    # 경력 (resume 내 career_history)
+    # 경력 (이전 resume 호환)
     career = resume.get("career_history", [])
     if career:
         lines.append("### 職歴（직력）")
@@ -141,9 +170,15 @@ def _format_resume_context(resume: dict) -> str:
         lines.append("")
 
     # 자기PR
-    if resume.get("self_pr"):
+    self_pr = resume.get("self_pr")
+    if isinstance(self_pr, dict):
+        lines.append("### 自己PR（자기PR）")
+        lines.append(f"**{self_pr.get('title', '')}**")
+        lines.append(self_pr.get("description", ""))
+        lines.append("")
+    elif isinstance(self_pr, str):
         lines.append("### 自己PR要約（자기PR 요약）")
-        lines.append(resume["self_pr"])
+        lines.append(self_pr)
         lines.append("")
 
     return "\n".join(lines)
@@ -159,11 +194,13 @@ def _format_career_context(career: dict) -> str:
         lines.append("")
 
     # 활용 가능한 경험·기술
-    applicable = career.get("applicable_skills", {})
-    if applicable:
+    core = career.get("core_competencies", career.get("applicable_skills", {}))
+    if core:
         lines.append("### 活かせる経験・知識・技術（활용 가능한 경험·기술）")
-        for category, items in applicable.items():
+        for category, items in core.items():
             if isinstance(items, list):
+                cat_label = category.replace("_", " ").title()
+                lines.append(f"**[{cat_label}]**")
                 for item in items:
                     lines.append(f"- {item}")
         lines.append("")
@@ -176,6 +213,8 @@ def _format_career_context(career: dict) -> str:
             lines.append(f"\n#### {i}社目: {h.get('company', '')} ({h.get('period', '')})")
             if h.get("position"):
                 lines.append(f"- 役職: {h['position']}")
+            if h.get("business_content"):
+                lines.append(f"- 事業内容: {h['business_content']}")
             if h.get("team_size"):
                 lines.append(f"- チーム規模: {h['team_size']}")
             if h.get("responsibilities"):
@@ -196,14 +235,26 @@ def _format_career_context(career: dict) -> str:
                 lines.append(f"\n **プロジェクト: {proj.get('name', '')}**")
                 if proj.get("period"):
                     lines.append(f" - 期間: {proj['period']}")
+                if proj.get("team_size"):
+                    lines.append(f" - チーム規模: {proj['team_size']}")
+                if proj.get("role"):
+                    lines.append(f" - 役割: {proj['role']}")
                 if proj.get("overview"):
                     lines.append(f" - 概要: {proj['overview']}")
-                if proj.get("achievements"):
-                    lines.append(" - 成果:")
-                    for a in proj["achievements"]:
-                        lines.append(f" - {a}")
-                if proj.get("technologies"):
+                
+                if proj.get("tech_stack"):
+                    lines.append(f" - 技術スタック: {', '.join(proj['tech_stack'])}")
+                elif proj.get("technologies"):
                     lines.append(f" - 技術: {', '.join(proj['technologies'])}")
+                
+                if proj.get("responsibilities"):
+                    lines.append(" - 担当業務:")
+                    for r in proj["responsibilities"]:
+                        lines.append(f"   - {r}")
+                if proj.get("achievements"):
+                    lines.append(" - 成果・実績:")
+                    for a in proj["achievements"]:
+                        lines.append(f"   - {a}")
 
             if h.get("technologies"):
                 lines.append(f"- 使用技術: {', '.join(h['technologies'])}")
@@ -217,16 +268,31 @@ def _format_career_context(career: dict) -> str:
             if isinstance(items, list) and items:
                 cat_label = category.replace("_", " ").title()
                 skills_str = ", ".join(
-                    f"{s.get('name', '')}({s.get('years', '')}年)" if isinstance(s, dict) else str(s)
+                    f"{s.get('name', '')}({s.get('years', '')})" if isinstance(s, dict) else str(s)
                     for s in items
                 )
                 lines.append(f"- {cat_label}: {skills_str}")
         lines.append("")
 
     # 자기PR
-    if career.get("self_pr"):
+    self_pr = career.get("self_pr")
+    if isinstance(self_pr, list):
+        lines.append("### 自己PR（자기PR 상세）")
+        for pr in self_pr:
+            lines.append(f"**{pr.get('title', '')}**")
+            lines.append(pr.get('content', '').strip())
+            lines.append("")
+    elif isinstance(self_pr, str):
         lines.append("### 自己PR（자기PR）")
         lines.append(str(career["self_pr"]).strip())
+        lines.append("")
+
+    # 포트폴리오
+    portfolio = career.get("portfolio_and_links", [])
+    if portfolio:
+        lines.append("### ポートフォリオ・リンク（포트폴리오）")
+        for p in portfolio:
+            lines.append(f"- {p.get('name', '')}: {p.get('url', '')}")
         lines.append("")
 
     return "\n".join(lines)
@@ -284,16 +350,27 @@ def _generate_standard_item(
 
     response_yaml = _parse_yaml_from_response(reviewed_response)
 
+    response_yaml = response_yaml.replace('\t', '  ')
     try:
         data = yaml.safe_load(response_yaml)
-    except yaml.YAMLError:
-        data = {output_type: {"ja": response_yaml, "ko": "(パース失敗)"}}
+    except yaml.YAMLError as e:
+        print(f"\n [Error] YAML Parsing failed: {e}")
+        print(f" [Debug] Raw YAML length: {len(response_yaml)}")
+        print(f" [Debug] Raw YAML Content:\n{response_yaml}\n")
+        data = {output_type: {"ja": response_yaml, "ko": "(パース失敗 - YAMLエラー)"}}
 
     # output_type 키가 있으면 그대로 사용, 없으면 감싸줌
-    if isinstance(data, dict) and output_type in data:
-        save_data = data
-    elif isinstance(data, dict):
-        save_data = {output_type: data}
+    if isinstance(data, dict):
+        if output_type in data:
+            save_data = data
+        else:
+            # LLM이 최상위 키를 오타낸 경우 (예: jiko_shologai) 단일 키라면 교체
+            keys = list(data.keys())
+            if len(keys) == 1 and isinstance(data[keys[0]], dict) and "ja" in data[keys[0]]:
+                print(f" [Warning] 키 불일치 감지: '{keys[0]}'를 '{output_type}'로 자동 수정합니다.")
+                save_data = {output_type: data[keys[0]]}
+            else:
+                save_data = {output_type: data}
     else:
         save_data = {output_type: {"ja": str(data), "ko": ""}}
 
@@ -301,7 +378,7 @@ def _generate_standard_item(
     inner = save_data.get(output_type, {})
     if isinstance(inner, dict) and not inner.get("ja"):
         print(f" ja フィールドが空です。LLM応答をfallbackとして使用します。")
-        inner["ja"] = response_yaml
+        inner["raw_fallback"] = response_yaml
         if not inner.get("ko"):
             inner["ko"] = "(自動fallback — LLM応答からjaフィールドが抽出できませんでした)"
         save_data[output_type] = inner
@@ -429,17 +506,26 @@ def main():
 
     gyaku_yaml = _parse_yaml_from_response(gyaku_reviewed_response)
 
+    gyaku_yaml = gyaku_yaml.replace('\t', '  ')
     try:
         gyaku_data = yaml.safe_load(gyaku_yaml)
-    except yaml.YAMLError:
-        gyaku_data = {}
+    except yaml.YAMLError as e:
+        print(f"\n [Error] Gyaku Shitsumon YAML Parsing failed: {e}")
+        gyaku_data = {"gyaku_shitsumon": {"questions": [{"ja": gyaku_yaml, "ko": "(パース失敗 - YAMLエラー)"}]}}
 
-    if isinstance(gyaku_data, dict) and "gyaku_shitsumon" in gyaku_data:
-        save_gq = gyaku_data
-    elif isinstance(gyaku_data, dict):
-        save_gq = {"gyaku_shitsumon": gyaku_data}
+    if isinstance(gyaku_data, dict):
+        if "gyaku_shitsumon" in gyaku_data:
+            save_gq = gyaku_data
+        else:
+            # Check for typo'd root key
+            keys = list(gyaku_data.keys())
+            if len(keys) == 1 and isinstance(gyaku_data[keys[0]], dict):
+                print(f" [Warning] 역질문 키 불일치 감지: '{keys[0]}'를 'gyaku_shitsumon'으로 자동 수정합니다.")
+                save_gq = {"gyaku_shitsumon": gyaku_data[keys[0]]}
+            else:
+                save_gq = {"gyaku_shitsumon": gyaku_data}
     else:
-        save_gq = {"gyaku_shitsumon": {"questions": [{"ja": gyaku_yaml, "ko": "(パース失敗)"}]}}
+        save_gq = {"gyaku_shitsumon": {"questions": [{"ja": str(gyaku_data), "ko": ""}]}}
 
     result_gq = save_output_yaml(
         output_type="gyaku_shitsumon",
@@ -458,16 +544,16 @@ def main():
     print(f"모든 {'최종 ' if is_final else ''}면접 준비가 완료되었습니다!")
     print(f"{'=' * 60}")
     print("\n[File] 생성된 파일:")
-    print(" - output/00. 自己紹介(자기소개).yaml")
-    print(" - output/01. 自己PR(자기PR).yaml")
-    print(" - output/02. 自身の強みと弱み(강점과 약점).yaml")
-    print(" - output/03. やりがいを感じる時(일의 보람).yaml")
-    print(" - output/04. 最も困難だった経験(가장 어려웠던 경험).yaml")
-    print(" - output/05. 転職軸(전직축).yaml")
-    print(" - output/06. 転職理由(전직이유).yaml")
-    print(" - output/07. 志望動機(지원동기).yaml")
-    print(" - output/08. 今後何がしたいか(향후 목표).yaml")
-    print(" - output/09. 逆質問(역질문).yaml")
+    print(" - output/00.自己紹介(자기소개).yaml")
+    print(" - output/01.自己PR(자기PR).yaml")
+    print(" - output/02.自身の強みと弱み(강점과 약점).yaml")
+    print(" - output/03.やりがいを感じる時(일의 보람).yaml")
+    print(" - output/04.最も困難だった経験(가장 어려웠던 경험).yaml")
+    print(" - output/05.転職軸(전직축).yaml")
+    print(" - output/06.転職理由(전직이유).yaml")
+    print(" - output/07.志望動機(지원동기).yaml")
+    print(" - output/08.今後何がしたいか(향후 목표).yaml")
+    print(" - output/09.逆質問(역질문).yaml")
     if is_final:
         print("\n [Mode] 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
     print()

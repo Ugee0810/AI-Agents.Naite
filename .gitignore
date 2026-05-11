@@ -5,6 +5,9 @@ __pycache__/
 data/*.pdf
 data/resume.yaml
 data/career.yaml
+data/resume_raw.yaml
+data/career_raw.yaml
+data/target_company.yaml
 output/
 .adk/
 setup_github.bat

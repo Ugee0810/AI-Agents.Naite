@@ -37,6 +37,7 @@ SYSTEM_PROMPT = f"""あなたは15年のキャリアを持つ、日本での転�
 - 出力は必ず ```yaml ... ``` コードブロックで囲むこと
 - **重要**: 出力YAMLに余計なキーの重複やネスト（例: キーの中にもう一度同じキーを含めること）をしないこと。指定された出力形式を正確に守ること
 - **重要**: `|` ブロックスカラーの後に改行を入れ、2スペースインデントで内容を記載すること
+- **重要**: YAMLの構文エラーを防ぐため、リスト要素や文字列の先頭を引用符（' や "）で始めないでください（例: `- 'テキスト'です` はエラーになります。必ず `- テキストです` のように記載してください）。
 
 {SPEAKING_RULES}
 
@@ -596,12 +597,15 @@ PDF_CONVERSION_SYSTEM_PROMPT = """あなたはPDFから抽出されたテキス�
 
 PDF_CONVERSION_PROMPT = """以下のテキストはPDFから抽出された{doc_type}の内容です。
 これを構造化されたYAML形式にフォーマットしてください。
+**重要**: いかなる情報も省略・要約せず、PDFに記載されている詳細をすべて保持してください。
 
 ## 履歴書の場合のYAML構造:
 ```yaml
 personal:
   name: ""
   furigana: ""
+  birth_date: ""
+  age: 0
   email: ""
   phone: ""
   address: ""
@@ -611,31 +615,65 @@ education:
   - period: ""
     institution: ""
     major: ""
-    degree: ""
+    status: ""
+
+military_service:
+  - period: ""
+    event: ""
+
+other_experience:
+  - period: ""
+    event: ""
 
 qualifications:
   - name: ""
     date: ""
 
-skills:
-  languages: []
-  technical: []
-  other: []
+self_pr:
+  title: ""
+  description: ""
+
+skills_and_hobbies:
+  specialty: ""
+  hobby: ""
 ```
 
 ## 職務経歴書の場合のYAML構造:
 ```yaml
-summary: ""
+summary: |
+  （省略せず、全文を完全に転記してください）
+
+core_competencies:
+  （例: ai_and_llm, architecture_and_engineering 等、PDFの「活かせる経験・知識・技術」をカテゴリ分けしてリスト化）
+  category_name: []
 
 career_history:
   - company: ""
     period: ""
-    position: ""
-    responsibilities: []
-    achievements: []
-    technologies: []
+    business_content: ""
+    projects:
+      - name: ""
+        period: ""
+        team_size: ""
+        role: ""
+        tech_stack: []
+        responsibilities: []
+        achievements: []
 
-self_pr: ""
+technical_skills:
+  （例: os, languages, frameworks_and_libraries, databases, cloud_and_infra 等）
+  category_name:
+    - name: ""
+      years: ""
+
+self_pr:
+  - title: ""
+    content: |
+      （省略せず、全文を完全に転記してください）
+
+portfolio_and_links:
+  - name: ""
+    url: ""
 ```
 
 ---
@@ -643,7 +681,7 @@ self_pr: ""
 {text}
 
 ---
-上記のテキストから情報を正確に抜き出して、適切なYAML構造で返してください。
+上記のテキストから情報を正確に抜き出して、指定した高度なYAML構造で返してください。情報が省略されないように注意してください。
 YAMLのコードブロック（```yaml ... ```）で囲んで返してください。
 """
 
@@ -667,4 +705,5 @@ SELF_REVIEW_PROMPT = """あなたは日本企業の面接対策専門のシニ�
 修正が不要な場合でも、より洗練された自然な表現があれば改善してください。
 
 **重要**: レビュー結果や思考プロセスは出力せず、元の出力YAML形式を厳密に維持し、改善された内容のみをYAMLコードブロック（```yaml ... ```）で出力してください。
+**重要**: YAMLの構文エラーを防ぐため、リスト要素や文字列の先頭を引用符（' や "）で始めないでください（例: `- 'テキスト'です` はエラーになります。必ず `- テキストです` のように記載してください）。
 """
