@@ -89,7 +89,7 @@ def _write_gyaku_shitsumon_yaml(data: dict) -> str:
             intent_ko: |
               ...
     """
-    lines = ["gyaku_shitsumon:", " questions:"]
+    lines = ["gyaku_shitsumon:", "  questions:"]
 
     raw_questions = data.get("gyaku_shitsumon", data).get("questions", {})
 
@@ -101,22 +101,36 @@ def _write_gyaku_shitsumon_yaml(data: dict) -> str:
     else:
         questions = {}
 
-    # 필드 순서: ja → intent_ja → ko → intent_ko
-    field_order = ["ja", "intent_ja", "ko", "intent_ko"]
+    # 필드 순서: ja → intent_ja → intent → ko → intent_ko
+    field_order = ["ja", "intent_ja", "intent", "ko", "intent_ko"]
 
     for q_key in sorted(questions.keys()):
         q = questions[q_key]
-        lines.append(f" {q_key}:")
+        lines.append(f"    {q_key}:")
 
+        written_fields = set()
         for field in field_order:
             if field not in q:
                 continue
+            written_fields.add(field)
             value = str(q[field]).strip()
             if "\n" in value or len(value) > 60:
-                lines.append(f" {field}: {_write_block_scalar(value, indent=8)}")
+                lines.append(f"      {field}: {_write_block_scalar(value, indent=8).rstrip()}")
             else:
                 lines.append(f"      {field}: |")
-                lines.append(f" {value}")
+                lines.append(f"        {value}")
+                lines.append("")
+                
+        # 출력되지 않은 나머지 필드들도 출력
+        for field, value in q.items():
+            if field in written_fields:
+                continue
+            value = str(value).strip()
+            if "\n" in value or len(value) > 60:
+                lines.append(f"      {field}: {_write_block_scalar(value, indent=8).rstrip()}")
+            else:
+                lines.append(f"      {field}: |")
+                lines.append(f"        {value}")
                 lines.append("")
 
     return "\n".join(lines) + "\n"
