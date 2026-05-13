@@ -56,7 +56,7 @@ position:
   # 応募職種名 / 응모 직종명
   title: ""
 
-  # 仕事内容（詳細）/ 업무 내용(상세)
+  # 仕事内容 / 업무 내용
   description: ""
 
   # 必須要件 / 필수 요건
@@ -67,6 +67,9 @@ position:
 
   # 企業の魅力・おすすめポイント / 기업 매력·추천 포인트
   appeal_points: ""
+
+  # 募集背景 / 모집 배경
+  recruitment_background: ""
 
   # 福利厚生・待遇 / 복리후생·대우
   benefits: ""
