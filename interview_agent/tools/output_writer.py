@@ -190,11 +190,10 @@ def save_output_yaml(
         "tsuyomi_yowami": "02.自身の強みと弱み(강점과 약점)",
         "yarigai": "03.やりがいを感じる時(일의 보람)",
         "konnan_keiken": "04.最も困難だった経験(가장 어려웠던 경험)",
-        "tensyoku_jiku": "05.転職軸(전직축)",
-        "tensyoku_riyuu": "06.転職理由(전직이유)",
-        "shibou_douki": "07.志望動機(지원동기)",
-        "kongo_nanika": "08.今後何がしたいか(향후 목표)",
-        "gyaku_shitsumon": "09.逆質問(역질문)",
+        "tensyoku_jiku_riyuu": "05.転職の軸・理由(전직축과 이유)",
+        "shibou_douki": "06.志望動機(지원동기)",
+        "kongo_nanika": "07.今後何がしたいか(향후 목표)",
+        "gyaku_shitsumon": "08.逆質問(역질문)",
     }
     if output_type not in valid_types:
         return {

@@ -15,12 +15,11 @@ from interview_agent.tools.output_writer import save_output_yaml
 from interview_agent.prompts import (
     JIKO_SHOUKAI_PROMPT,
     SHIBOU_DOUKI_PROMPT,
-    TENSYOKU_RIYUU_PROMPT,
+    TENSYOKU_JIKU_RIYUU_PROMPT,
     JIKO_PR_PROMPT,
     KONGO_NANIKA_PROMPT,
     GYAKU_SHITSUMON_PROMPT_EARLY,
     GYAKU_SHITSUMON_PROMPT_FINAL,
-    TENSYOKU_JIKU_PROMPT,
     TSUYOMI_YOWAMI_PROMPT,
     YARIGAI_PROMPT,
     KONNAN_KEIKEN_PROMPT,
@@ -317,6 +316,14 @@ def _build_context(resume: dict, career: dict, company: dict) -> str:
 
 def _parse_yaml_from_response(text: str) -> str:
     """LLM 응답에서 ```yaml ... ``` 블록 내용을 추출합니다."""
+    import re
+    # Remove internal thought processes to prevent special token errors in local servers
+    text = re.sub(r'<\|channel\|>.*?(?:<\|channel\|>|$)', '', text, flags=re.DOTALL)
+    text = re.sub(r'<\|channel>.*?(?:<\|channel>|$)', '', text, flags=re.DOTALL)
+    text = re.sub(r'<think>.*?(?:</think>|$)', '', text, flags=re.DOTALL)
+    # Also strip any leftover raw tags
+    text = text.replace('<|channel>thought', '').replace('<|channel>', '')
+    
     if "```yaml" in text:
         start = text.index("```yaml") + len("```yaml")
         end = text.index("```", start)
@@ -478,23 +485,20 @@ def main():
     # ── 스텝 6 (04): 가장 어려웠던 경험 ──
     _generate_standard_item(6, "最も困難だった経験", "가장 어려웠던 경험", "konnan_keiken", KONNAN_KEIKEN_PROMPT, context, system_prompt)
 
-    # ── 스텝 7 (05): 전직축 ──
-    _generate_standard_item(7, "転職軸", "전직축", "tensyoku_jiku", TENSYOKU_JIKU_PROMPT, context, system_prompt)
+    # ── 스텝 7 (05): 전직축과 이유 ──
+    _generate_standard_item(7, "転職の軸・理由", "전직축과 이유", "tensyoku_jiku_riyuu", TENSYOKU_JIKU_RIYUU_PROMPT, context, system_prompt)
 
-    # ── 스텝 8 (06): 전직이유 ──
-    _generate_standard_item(8, "転職理由", "전직이유", "tensyoku_riyuu", TENSYOKU_RIYUU_PROMPT, context, system_prompt)
+    # ── 스텝 8 (06): 지원동기 ──
+    _generate_standard_item(8, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context, system_prompt)
 
-    # ── 스텝 9 (07): 지원동기 ──
-    _generate_standard_item(9, "志望動機", "지원동기", "shibou_douki", SHIBOU_DOUKI_PROMPT, context, system_prompt)
+    # ── 스텝 9 (07): 향후 목표 ──
+    _generate_standard_item(9, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context, system_prompt)
 
-    # ── 스텝 10 (08): 향후 목표 ──
-    _generate_standard_item(10, "今後何がしたいか", "향후 목표", "kongo_nanika", KONGO_NANIKA_PROMPT, context, system_prompt)
-
-    # ── 스텝 11 (09): 역질문 ──
+    # ── 스텝 10 (08): 역질문 ──
     gyaku_prompt = GYAKU_SHITSUMON_PROMPT_FINAL if is_final else GYAKU_SHITSUMON_PROMPT_EARLY
     gyaku_label = "最終面接用逆質問" if is_final else "逆質問"
     gyaku_label_ko = "최종면접용 역질문" if is_final else "역질문"
-    _print_step(11, f"{gyaku_label}の作成", f"{gyaku_label_ko} 작성")
+    _print_step(10, f"{gyaku_label}の作成", f"{gyaku_label_ko} 작성")
     print(" [AI] 생성 중...")
 
     gyaku_response = _call_llm(system_prompt, gyaku_prompt + "\n\n" + context)
@@ -549,11 +553,10 @@ def main():
     print(" - output/02.自身の強みと弱み(강점과 약점).yaml")
     print(" - output/03.やりがいを感じる時(일의 보람).yaml")
     print(" - output/04.最も困難だった経験(가장 어려웠던 경험).yaml")
-    print(" - output/05.転職軸(전직축).yaml")
-    print(" - output/06.転職理由(전직이유).yaml")
-    print(" - output/07.志望動機(지원동기).yaml")
-    print(" - output/08.今後何がしたいか(향후 목표).yaml")
-    print(" - output/09.逆質問(역질문).yaml")
+    print(" - output/05.転職の軸・理由(전직축과 이유).yaml")
+    print(" - output/06.志望動機(지원동기).yaml")
+    print(" - output/07.今後何がしたいか(향후 목표).yaml")
+    print(" - output/08.逆質問(역질문).yaml")
     if is_final:
         print("\n [Mode] 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
     print()
