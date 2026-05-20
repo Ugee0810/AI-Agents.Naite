@@ -28,6 +28,7 @@ from interview_agent.prompts import (
     SYSTEM_PROMPT,
     SYSTEM_PROMPT_FINAL,
     SELF_REVIEW_PROMPT,
+    SHOKUMU_YOSOU_SHITSUMON_PROMPT,
 )
 
 def _print_header(is_final: bool = False):
@@ -314,6 +315,99 @@ def _build_context(resume: dict, career: dict, company: dict) -> str:
         f"```yaml\n{yaml.dump(company, allow_unicode=True, default_flow_style=False)}```"
     )
 
+def _sanitize_yaml_text(yaml_text: str) -> str:
+    """YAML block scalar 내부의 위험 패턴을 자동 수정합니다.
+    
+    주요 수정 사항:
+    1. block scalar(|) 내부의 콜론(:) 앞뒤를 감지하여 키 해석 방지
+    2. 잘못된 인덴트로 인한 키 해석 오류 방지
+    3. 따옴표 없는 특수 문자 이스케이프
+    """
+    import re
+    lines = yaml_text.split("\n")
+    result = []
+    in_block_scalar = False
+    block_indent = 0
+    
+    for i, line in enumerate(lines):
+        stripped = line.lstrip()
+        current_indent = len(line) - len(stripped)
+        
+        # block scalar 시작 감지: 키: | 형태
+        if re.match(r'^\s*[\w_]+:\s*\|\s*$', line):
+            in_block_scalar = True
+            block_indent = current_indent
+            result.append(line)
+            continue
+        
+        if in_block_scalar:
+            # 빈 줄은 block scalar 내부에서 유지
+            if stripped == "":
+                result.append(line)
+                continue
+            
+            # 현재 줄의 인덴트가 block scalar 키보다 깊으면 아직 block scalar 내부
+            if current_indent > block_indent:
+                # block scalar 내부의 줄이 YAML 키처럼 보이는 패턴 감지
+                # 예: "intentにもっとも適した回答は" -> 이건 키가 아님
+                # 하지만 "q3:" 같은 건 새로운 키일 수 있음
+                if re.match(r'^\s+[a-z_]+\d*:\s*$', line) or re.match(r'^\s+[a-z_]+\d*:\s*\|', line):
+                    # 실제 YAML 키로 보임 → block scalar 종료
+                    in_block_scalar = False
+                    result.append(line)
+                    continue
+                # 일본어/한국어 텍스트 내부의 콜론은 안전 (block scalar 내부이므로)
+                result.append(line)
+                continue
+            else:
+                # 인덴트가 같거나 얕으면 block scalar 종료
+                in_block_scalar = False
+        
+        result.append(line)
+    
+    return "\n".join(result)
+
+def _try_parse_yaml(yaml_text: str) -> dict | None:
+    """YAML 파싱을 시도합니다. 실패 시 sanitize 후 재시도합니다."""
+    yaml_text = yaml_text.replace('\t', '  ')
+    
+    # 1차: 직접 파싱 시도
+    try:
+        data = yaml.safe_load(yaml_text)
+        if isinstance(data, dict):
+            return data
+    except yaml.YAMLError:
+        pass
+    
+    # 2차: sanitize 후 재시도
+    sanitized = _sanitize_yaml_text(yaml_text)
+    try:
+        data = yaml.safe_load(sanitized)
+        if isinstance(data, dict):
+            print(" [Info] YAML sanitize 후 파싱 성공")
+            return data
+    except yaml.YAMLError:
+        pass
+    
+    # 3차: 줄바꿈이 있는 block scalar 값을 따옴표로 감싸기
+    import re
+    # intent 등의 필드에서 | 대신 직접 텍스트가 적힌 경우 따옴표로 감싸기
+    fixed = re.sub(
+        r'^(\s+(?:intent_?[a-z]*|answer_?[a-z]*|question_?[a-z]*):\s+)(?!\||>)(.+)$',
+        lambda m: f'{m.group(1)}"{ m.group(2).replace(chr(34), chr(39)) }"',
+        sanitized,
+        flags=re.MULTILINE
+    )
+    try:
+        data = yaml.safe_load(fixed)
+        if isinstance(data, dict):
+            print(" [Info] YAML 따옴표 보정 후 파싱 성공")
+            return data
+    except yaml.YAMLError:
+        pass
+    
+    return None
+
 def _parse_yaml_from_response(text: str) -> str:
     """LLM 응답에서 ```yaml ... ``` 블록 내용을 추출합니다."""
     import re
@@ -357,14 +451,12 @@ def _generate_standard_item(
 
     response_yaml = _parse_yaml_from_response(reviewed_response)
 
-    response_yaml = response_yaml.replace('\t', '  ')
-    try:
-        data = yaml.safe_load(response_yaml)
-    except yaml.YAMLError as e:
-        print(f"\n [Error] YAML Parsing failed: {e}")
+    data = _try_parse_yaml(response_yaml)
+    if data is None:
+        print(f"\n [Warning] YAML 파싱 실패 — 원본 텍스트를 보존합니다.")
         print(f" [Debug] Raw YAML length: {len(response_yaml)}")
-        print(f" [Debug] Raw YAML Content:\n{response_yaml}\n")
-        data = {output_type: {"ja": response_yaml, "ko": "(パース失敗 - YAMLエラー)"}}
+        print(f" [Debug] Raw YAML Content (first 300 chars):\n{response_yaml[:300]}\n")
+        data = {output_type: {"ja": response_yaml, "ko": "(パース失敗 - 原文を保存しました)"}}
 
     # output_type 키가 있으면 그대로 사용, 없으면 감싸줌
     if isinstance(data, dict):
@@ -510,12 +602,10 @@ def main():
 
     gyaku_yaml = _parse_yaml_from_response(gyaku_reviewed_response)
 
-    gyaku_yaml = gyaku_yaml.replace('\t', '  ')
-    try:
-        gyaku_data = yaml.safe_load(gyaku_yaml)
-    except yaml.YAMLError as e:
-        print(f"\n [Error] Gyaku Shitsumon YAML Parsing failed: {e}")
-        gyaku_data = {"gyaku_shitsumon": {"questions": [{"ja": gyaku_yaml, "ko": "(パース失敗 - YAMLエラー)"}]}}
+    gyaku_data = _try_parse_yaml(gyaku_yaml)
+    if gyaku_data is None:
+        print(f"\n [Warning] 역질문 YAML 파싱 실패 — 원본 텍스트를 보존합니다.")
+        gyaku_data = {"gyaku_shitsumon": {"questions": [{"ja": gyaku_yaml, "ko": "(パース失敗 - 原文を保存しました)"}]}}
 
     if isinstance(gyaku_data, dict):
         if "gyaku_shitsumon" in gyaku_data:
@@ -541,6 +631,82 @@ def main():
     else:
         print(f" [Error] 저장 실패: {result_gq['message']}")
 
+    # ── 스텝 11 (09): 직무별 예상 질문 ──
+    _print_step(11, "職務別想定質問の作成", "직무별 예상 질문 작성")
+    print(" [AI] 직무경력서 × 구인 요건 크로스 분석 중...")
+
+    shokumu_response = _call_llm(system_prompt, SHOKUMU_YOSOU_SHITSUMON_PROMPT + "\n\n" + context)
+
+    # --- Self-Review Step ---
+    print(" [Review] 셀프 리뷰 진행 중...")
+    shokumu_review_prompt = f"{SELF_REVIEW_PROMPT}\n\n## レビュー対象の回答案:\n```yaml\n{_parse_yaml_from_response(shokumu_response)}\n```\n\n## 面接コンテキスト:\n{context}"
+    shokumu_reviewed_response = _call_llm(system_prompt, shokumu_review_prompt)
+
+    shokumu_yaml = _parse_yaml_from_response(shokumu_reviewed_response)
+
+    shokumu_data = _try_parse_yaml(shokumu_yaml)
+    if shokumu_data is None:
+        print(f"\n [Warning] 직무별 예상 질문 YAML 파싱 실패 — LLM 재호출로 복구 시도...")
+        print(f" [Debug] Raw YAML length: {len(shokumu_yaml)}")
+        print(f" [Debug] Raw YAML Content (first 300 chars):\n{shokumu_yaml[:300]}\n")
+        
+        # 파싱 실패 시 LLM 재호출 (1회 재시도)
+        retry_prompt = (
+            "以下のYAMLは構文エラーがあります。内容はそのまま保持し、YAML構文のみを修正してください。\n"
+            "特に以下の点を修正してください:\n"
+            "1. block scalar (|) の後は必ず改行し、内容は適切なインデントで記載する\n"
+            "2. intent_ja, intent_ko, answer_ja, answer_ko のような長文フィールドは必ず | を使う\n"
+            "3. 文字列内にコロン(:)が含まれる場合、block scalar (|) を使用する\n"
+            "4. 各レベルのインデントを正確に維持する\n\n"
+            f"修正対象:\n```yaml\n{shokumu_yaml}\n```\n\n"
+            "修正されたYAMLのみを ```yaml ... ``` で囲んで出力してください。"
+        )
+        try:
+            retry_response = _call_llm(system_prompt, retry_prompt)
+            retry_yaml = _parse_yaml_from_response(retry_response)
+            shokumu_data = _try_parse_yaml(retry_yaml)
+            if shokumu_data is not None:
+                print(" [OK] LLM 재호출로 YAML 복구 성공")
+                shokumu_yaml = retry_yaml  # 복구된 YAML로 교체
+        except Exception as retry_e:
+            print(f" [Error] LLM 재호출 실패: {retry_e}")
+        
+        # 최종 fallback: 원본 텍스트 보존
+        if shokumu_data is None:
+            print(" [Fallback] 원본 텍스트를 그대로 저장합니다.")
+            shokumu_data = {
+                "shokumu_yosou_shitsumon": {
+                    "raw_text": shokumu_yaml,
+                    "parse_error": True,
+                    "position_analysis": {},
+                    "categories": {},
+                }
+            }
+
+    if isinstance(shokumu_data, dict):
+        if "shokumu_yosou_shitsumon" in shokumu_data:
+            save_sq = shokumu_data
+        else:
+            # Check for typo'd root key
+            keys = list(shokumu_data.keys())
+            if len(keys) == 1 and isinstance(shokumu_data[keys[0]], dict):
+                print(f" [Warning] 직무별 예상 질문 키 불일치 감지: '{keys[0]}'를 'shokumu_yosou_shitsumon'으로 자동 수정합니다.")
+                save_sq = {"shokumu_yosou_shitsumon": shokumu_data[keys[0]]}
+            else:
+                save_sq = {"shokumu_yosou_shitsumon": shokumu_data}
+    else:
+        save_sq = {"shokumu_yosou_shitsumon": {"categories": {}, "position_analysis": {}}}
+
+    result_sq = save_output_yaml(
+        output_type="shokumu_yosou_shitsumon",
+        raw_data=save_sq,
+    )
+
+    if result_sq["status"] == "success":
+        print(f" [OK] {result_sq['output_path']} 저장 완료")
+    else:
+        print(f" [Error] 저장 실패: {result_sq['message']}")
+
     # ── 완료 ──
     mode_label = "最終面接" if is_final else "面接"
     print(f"\n{'=' * 60}")
@@ -557,6 +723,7 @@ def main():
     print(" - output/06.志望動機(지원동기).yaml")
     print(" - output/07.今後何がしたいか(향후 목표).yaml")
     print(" - output/08.逆質問(역질문).yaml")
+    print(" - output/09.職務別想定質問(직무별 예상질문).yaml")
     if is_final:
         print("\n [Mode] 최종면접 모드: 겸손함을 중시한 미래지향 답변을 생성했습니다")
     print()

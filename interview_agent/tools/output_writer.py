@@ -135,10 +135,122 @@ def _write_gyaku_shitsumon_yaml(data: dict) -> str:
 
     return "\n".join(lines) + "\n"
 
+def _write_shokumu_yosou_yaml(data: dict) -> str:
+    """직무별 예상 질문(職務別想定質問) YAML을 계층 구조로 작성합니다.
+
+    출력 형식:
+      shokumu_yosou_shitsumon:
+        position_analysis:
+          title: ...
+          key_requirements: [...]
+          career_match_points: [...]
+          gap_areas: [...]
+        categories:
+          technical_aptitude:
+            label_ja: ...
+            questions:
+              q1:
+                question_ja: |
+                  ...
+    """
+    lines = ["shokumu_yosou_shitsumon:"]
+
+    raw = data.get("shokumu_yosou_shitsumon", data)
+
+    # 파싱 에러 fallback 처리: raw_text가 있으면 block scalar로 저장
+    if raw.get("parse_error"):
+        raw_text = raw.get("raw_text", "")
+        if raw_text:
+            lines.append("  # [WARNING] YAML파싱에 실패하여 원본 텍스트를 그대로 저장합니다.")
+            lines.append("  # 수동으로 확인하여 수정해주세요.")
+            lines.append("  parse_error: true")
+            lines.append("  raw_text: |")
+            for rt_line in raw_text.split("\n"):
+                lines.append(f"    {rt_line}")
+            return "\n".join(lines) + "\n"
+
+    # ── position_analysis 섹션 ──
+    pa = raw.get("position_analysis", {})
+    if pa:
+        lines.append("  position_analysis:")
+        if pa.get("title"):
+            lines.append(f"    title: \"{pa['title']}\"")
+        for list_key in ["key_requirements", "career_match_points", "gap_areas"]:
+            items = pa.get(list_key, [])
+            if items:
+                lines.append(f"    {list_key}:")
+                for item in items:
+                    lines.append(f"      - {item}")
+        lines.append("")
+
+    # ── categories 섹션 ──
+    categories = raw.get("categories", {})
+    if categories:
+        lines.append("  categories:")
+
+        # 필드 순서 고정
+        category_order = ["technical_aptitude", "project_deep_dive", "work_adaptation", "gap_analysis"]
+        question_field_order = ["question_ja", "question_ko", "answer_ja", "answer_ko", "intent_ja", "intent_ko"]
+
+        for cat_key in category_order:
+            cat = categories.get(cat_key)
+            if not cat:
+                continue
+
+            lines.append(f"    {cat_key}:")
+            if cat.get("label_ja"):
+                lines.append(f"      label_ja: \"{cat['label_ja']}\"")
+            if cat.get("label_ko"):
+                lines.append(f"      label_ko: \"{cat['label_ko']}\"")
+
+            questions = cat.get("questions", {})
+            if not questions:
+                continue
+
+            # list 형태 → dict 변환 (하위 호환)
+            if isinstance(questions, list):
+                questions = {f"q{i+1}": q for i, q in enumerate(questions)}
+
+            lines.append("      questions:")
+            for q_key in sorted(questions.keys()):
+                q = questions[q_key]
+                lines.append(f"        {q_key}:")
+
+                written_fields = set()
+                for field in question_field_order:
+                    if field not in q:
+                        continue
+                    written_fields.add(field)
+                    value = str(q[field]).strip()
+                    if "\n" in value or len(value) > 60:
+                        lines.append(f"          {field}: {_write_block_scalar(value, indent=12).rstrip()}")
+                    else:
+                        lines.append(f"          {field}: |")
+                        lines.append(f"            {value}")
+                        lines.append("")
+
+                # 나머지 필드 fallback
+                for field, value in q.items():
+                    if field in written_fields:
+                        continue
+                    value = str(value).strip()
+                    if "\n" in value or len(value) > 60:
+                        lines.append(f"          {field}: {_write_block_scalar(value, indent=12).rstrip()}")
+                    else:
+                        lines.append(f"          {field}: |")
+                        lines.append(f"            {value}")
+                        lines.append("")
+
+            lines.append("")
+
+    return "\n".join(lines) + "\n"
+
 def _serialize_yaml(output_type: str, content: dict) -> str:
     """output_type에 따라 적절한 YAML serializer를 선택합니다."""
     if output_type == "gyaku_shitsumon":
         return _write_gyaku_shitsumon_yaml(content)
+    if output_type == "shokumu_yosou_shitsumon":
+        return _write_shokumu_yosou_yaml(content)
 
     # 표준 형식: root_key → {ja, key_points_ja, ko, key_points_ko}
     root_key = output_type
@@ -194,6 +306,7 @@ def save_output_yaml(
         "shibou_douki": "06.志望動機(지원동기)",
         "kongo_nanika": "07.今後何がしたいか(향후 목표)",
         "gyaku_shitsumon": "08.逆質問(역질문)",
+        "shokumu_yosou_shitsumon": "09.職務別想定質問(직무별 예상질문)",
     }
     if output_type not in valid_types:
         return {
